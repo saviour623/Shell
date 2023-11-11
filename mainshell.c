@@ -1,5 +1,7 @@
 #include "shell_header.h"
-
+#define __wrap_jump(environ, status)
+#define __ret_jump(environ, status)
+extern char **environ;
 __attribute__((noreturn)) void eRR_routine(long err)
 {
 	(void)err;
@@ -39,8 +41,9 @@ int interactive_mode(int argc, char **argv)
 	char **tokens, *line_buffer = NULL;
 	size_t line = 0;
 	ssize_t char_read;
-	int is_interactive_tty;
-	
+	int is_interactive_tty, status;
+	char *pathrc;
+
 	if (env_tmp == NULL)
 		eRR_routine(ERRNULL);
 	prompt = ROOT_CMP(env_tmp) ? "# " : "$ ";
@@ -81,11 +84,18 @@ restart_int_sig: /* since we can't use setjmp */
 
 		if (tokens != NULL)
 		{
-			/* find path */
+			pathrc = path(*tokens, &status);
+
+			if ((pathrc == NULL) && (status != 1))
+				continue;
+
+			/* check if it is a directory */	
 			/* find builtin */
 			/* find alias */
+			*tokens = pathrc;
 			execteArg(tokens);
 		}
+		free(*tokens);
 		free(line_buffer);
 		free(tokens);
 	} while (is_interactive_tty == true);
@@ -105,7 +115,7 @@ void execteArg(char **cmd)
 			eRR_routine(errno);
 		case 0:
 			errno = 0;
-			execve(cmd[0], cmd, NULL);
+			execve(cmd[0], cmd, environ);
 			perror("execve");
 			exit(EXIT_SUCCESS);
 		default:

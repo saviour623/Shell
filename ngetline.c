@@ -4,9 +4,6 @@
 #define MIN_ALLOC_SIZE 128
 #define RESIZE_ALLOC_SIZE 256
 
-#define GLN_MALLOC(nptr, optr, block)			\
-	((nptr = glnrealloc(optr, block)) != NULL)
-
 #define I_OVERFLOW_MAX_CNT(n)									\
 	((n) > MAX_CNT ? ((errno = EOVERFLOW), true) : false)
 /**
@@ -19,24 +16,6 @@ int stdin_getchar(void)
 	int oo = 0;
 
 	return ((oo = read(0, &c, 1)) < 0 ? -1 : oo == 0 ? 0 : c);
-}
-
-/**
- * glnrealloc - reallocates memmory.
- * @oldmem: old memory.
- * @size: block to reallocate.
- * Return: sets errno and returns NULL error else returns new block of memory
- */
-static void *glnrealloc(void *oldmem, size_t size)
-{
-	void *newmem =  realloc(oldmem, size);
-
-	if (newmem == NULL)
-	{
-		errno = ENOMEM;
-		return (NULL);
-	}
-	return (newmem);
 }
 
 /**
