@@ -7,7 +7,7 @@ __attribute__((noreturn)) void eRR_routine(long err)
 }
 
 #define ROOT_CMP(B)\
-	((B[0] == '\\') && (B[1] == 'r') &&  (B[2] == 'o')\
+	((B[0] == '/') && (B[1] == 'r') &&  (B[2] == 'o')\
 	 && (B[3] == 'o') &&  (B[4] == 't'))
 
 #define ENV_MAX_SIZE
@@ -15,6 +15,7 @@ __attribute__((noreturn)) void eRR_routine(long err)
 volatile int globalsig;
 void sig_interrupt(int sig)
 {
+	(void)sig;
 	globalsig = true; /* unsafe: race */
 }
 
@@ -32,7 +33,7 @@ int main(int argc __UNUSED__, char **argv __UNUSED__)
 	}
 }
 
-static int interactive_mode(int argc, char **argv)
+int interactive_mode(int argc, char **argv)
 {
 	char *env_tmp = getenv("HOME"), *prompt;
 	char **tokens, *line_buffer = NULL;
@@ -50,6 +51,7 @@ static int interactive_mode(int argc, char **argv)
 	if (signal(SIGQUIT, sig_interrupt) == SIG_ERR)
 		exit(0);
 
+	(void)argc; (void)argv;
 restart_int_sig: /* since we can't use setjmp */
 	do {
 
@@ -60,7 +62,7 @@ restart_int_sig: /* since we can't use setjmp */
 		line_buffer = NULL;
 		line = 0;
 
-		char_read = getline(&line_buffer, &line, stdin);
+		char_read = stdin_getline(&line_buffer, &line);
 
 		if (char_read == -1)
 		{
@@ -74,7 +76,7 @@ restart_int_sig: /* since we can't use setjmp */
 			goto restart_int_sig;
 		}
 
-		line_buffer[char_read - 1] == '\0';
+		line_buffer[char_read] = '\0';
 		tokens = getcmdString(line_buffer);
 
 		if (tokens != NULL)
@@ -154,7 +156,7 @@ int getNumtoks(const char *__restrict__ st, const char *__restrict__ delim)
 	oo = 0;
 	set = true;
 
-	for (; *st; *st++)
+	for (; *st; (void)*st++)
 	{
 		if (delimCharcmp(delim, st))
 			set = true;

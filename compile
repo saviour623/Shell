@@ -1,0 +1,1 @@
+-Wall -Wextra -pedantic -std=gnu89 mainshell.c ngetline.c -o myshell 

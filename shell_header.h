@@ -8,7 +8,9 @@
 #include <sys/wait.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <string.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
@@ -27,9 +29,11 @@
 #define ERRSTR 2
 #define ERRMEM 3
 
-static int interactive_mode(int argc, char **argv);
+int interactive_mode(int argc, char **argv);
 int getNumtoks(const char *__restrict__, const char *__restrict__);
 char **getcmdString(char *__restrict__);
 int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp);
+ssize_t stdin_getline(char **lineptr, size_t *n);
+int stdin_getchar(void);
 void execteArg(char **cmd);
 #endif
