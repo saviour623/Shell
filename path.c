@@ -4,17 +4,20 @@
 	(!((stat) = access((cmd), (mode))))
 
 /**
- * path: finds the path and existence of a file from the PATH environment.
+ * path - finds the path and existence of a file from the PATH environment.
  * @cmd: file
- * @status: if -1, error; 0, file is found and is an executable; 1, file is a path; 2 file is not executable; 3, ordinary file; 4, file is a directory.
- * @Return: NULL on error, else the absolute path of the file.
+ * @status: if -1, error - 0, file is found and is an executable -
+ * 1, file is a path - 2 file is not executable -
+ * 3, ordinary file - 4, file is a directory.
+ * Return: NULL on error, else the absolute path of the file.
  */
 char *path(char *cmd, int *status)
 {
-	char *env_path = getenv("PATH");
+	char *env_path;
 	size_t env_len;
 	char *cpy_path;
 
+	env_path = getenv("PATH");
 	*status = -1;
 
 	if (env_path == NULL && (cmd == NULL || *cmd == 0) || status == NULL)
@@ -23,7 +26,7 @@ char *path(char *cmd, int *status)
 	env_len = strlen(env_path);
 
 	if (GLN_MALLOC(cpy_path, NULL, sizeof(char *) * env_len) == 0)
-		return NULL;
+		return (NULL);
 
 	str_cpy(cpy_path, env_path, env_len);
 
@@ -35,24 +38,25 @@ char *path(char *cmd, int *status)
 
 /**
  * search_path - searches for executive permission of file.
- * @path: possible paths where file can be found.
  * @cmd: file
- * status: -1 on error, 0, if found, 2 if not in path but no error.
+ * @env_path: environment path
+ * @status: -1 on error, 0, if found, 2 if not in path but no error.
  * Return: returns the path appended to file is successful else NULL.
  */
 char *search_path(char *__restrict__ env_path, char *cmd, int *status)
 {
-	char *abs_path,  *tmp = cmd;
 	register int cmdLen, is_path, oo, ee;
+	char *tmp, *abs_path;
 
 	*status = -1; /* initially set to error */
 
 	if (env_path == NULL || cmd == NULL || status == NULL)
 		return (NULL);
 
-	/* check if cmd is a path (preceded with '/') */
-	while (!(is_path = delimCharcmp("/", tmp)) && *tmp++);
-
+	/* check if cmd is already path (preceded with '/') */
+	tmp = cmd;
+	while (!(is_path = delimCharcmp("/", tmp)) && *tmp++)
+		;
 	if (is_path == true)
 	{
 		*status = access(cmd, F_OK | X_OK) == 0 ? 1 : 2;
@@ -65,7 +69,6 @@ char *search_path(char *__restrict__ env_path, char *cmd, int *status)
 		ee = strlen(env_path);
 
 		if (GLN_MALLOC(abs_path, NULL, sizeof(char) * (ee + cmdLen + 4)) == 0)
-
 			return (NULL);
 
 		/* copy tokenize path (should be absolute) */
@@ -81,5 +84,5 @@ char *search_path(char *__restrict__ env_path, char *cmd, int *status)
 		free(abs_path);
 		env_path = abs_path = NULL;
 	}
-	return *status == 0 ? abs_path : ((*status = 2), NULL);
+	return (*status == 0 ? abs_path : (*status = 2), NULL);
 }
