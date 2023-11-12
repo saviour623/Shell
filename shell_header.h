@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <setjmp.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -29,8 +30,13 @@
 #define ERRSTR 2
 #define ERRMEM 3
 
-#define GLN_MALLOC(nptr, optr, block)			\
+extern char **environ;
+
+#define GLN_MALLOC(nptr, optr, block)									\
 	((nptr = glnrealloc(optr, sizeof(unsigned char) * block)) != NULL)
+
+#define MAX_ENVPATH_LEN 4096UL << 5
+#define restrict __restrict__
 
 void *glnrealloc(void *oldmem, size_t size);
 int interactive_mode(int argc, char **argv);

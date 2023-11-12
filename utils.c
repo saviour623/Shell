@@ -19,13 +19,16 @@ void *glnrealloc(void *oldmem, size_t size)
 }
 
 /**
- * str_cpy - copies len bytes from src to dest.
+ * str_cpy - copies @len bytes from src to dest.
  * @dest: destination buffemr.
  * @src: source.
- * @len: len bytes to copy.
- * Return: number of bytes copied. If while reading dest gets to its '\0', it is returned with a partial copy.
+ * @len: length of bytes to copy - however, it may depend of on the length of
+ * the src string. Therefore, larger length can be supplied only if @src is
+ * null terminated.
+ * Return: number of bytes copied.
+ * copy can be partial if while reading @dest or @src gets to its '\0' byte.
  */
-ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len)
+ssize_t str_cpy(char *restrict dest, const char * restrict src, size_t len)
 {
 	register size_t c, oo;
 
@@ -50,17 +53,17 @@ ret:
  * @cmp: character
  * Return: true if it a delimiter, else false
  */
-int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp)
+int delimCharcmp(const char *restrict delim, const char *restrict cmp)
 {
-	char c __attribute__((unused));
+	char c __UNUSED__;
 
 	if (delim == NULL || cmp == NULL)
-		return -1;
+		return (-1);
 
 	for (; (c = *delim); delim++)
 	{
 		if (c == *cmp)
-			return true;
+			return (true);
 	}
-	return false;
+	return (false);
 }

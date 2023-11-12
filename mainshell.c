@@ -1,7 +1,7 @@
 #include "shell_header.h"
-#define __wrap_jump(environ, status)
-#define __ret_jump(environ, status)
-extern char **environ;
+
+volatile char *sig_prompt;
+
 __attribute__((noreturn)) void eRR_routine(long err)
 {
 	(void)err;
@@ -12,13 +12,11 @@ __attribute__((noreturn)) void eRR_routine(long err)
 	((B[0] == '/') && (B[1] == 'r') &&  (B[2] == 'o')\
 	 && (B[3] == 'o') &&  (B[4] == 't'))
 
-#define ENV_MAX_SIZE
-
-volatile int globalsig;
-void sig_interrupt(int sig)
+void sig_interrupt(int sig __UNUSED__)
 {
-	(void)sig;
-	globalsig = true; /* unsafe: race */
+	fflush(stdout);
+	write(1, "\n", 2);
+	write(1, (char *)sig_prompt, strlen((char *)sig_prompt));
 }
 
 int main(int argc __UNUSED__, char **argv __UNUSED__)
@@ -33,9 +31,10 @@ int main(int argc __UNUSED__, char **argv __UNUSED__)
 	   	if (interactive_mode(argc, argv) == -1)
 			eRR_routine(ERRSTR);
 	}
+	return 0;
 }
 
-int interactive_mode(int argc, char **argv)
+int interactive_mode(int argc __UNUSED__, char **argv __UNUSED__)
 {
 	char *env_tmp = getenv("HOME"), *prompt;
 	char **tokens, *line_buffer = NULL;
@@ -48,23 +47,19 @@ int interactive_mode(int argc, char **argv)
 		eRR_routine(ERRNULL);
 	prompt = ROOT_CMP(env_tmp) ? "# " : "$ ";
 
-	globalsig = false;
 	if (signal(SIGINT, sig_interrupt) == SIG_ERR)
 		eRR_routine(2);
 	if (signal(SIGQUIT, sig_interrupt) == SIG_ERR)
 		exit(0);
-
-	(void)argc; (void)argv;
-restart_int_sig: /* since we can't use setjmp */
 	do {
-
 		is_interactive_tty = isatty(STDIN_FILENO);
 		is_interactive_tty ? (void) printf("%s", prompt) : (void) 0;
-
+		sig_prompt = prompt;
 		fflush(stdout);
+
 		line_buffer = NULL;
 		line = 0;
-
+		
 		char_read = stdin_getline(&line_buffer, &line);
 
 		if (char_read == -1)
@@ -72,11 +67,6 @@ restart_int_sig: /* since we can't use setjmp */
 			free(line_buffer);
 			putchar('\n');
 			exit(-1);
-		}
-		if (globalsig == true)
-		{
-			globalsig = false;
-			goto restart_int_sig;
 		}
 
 		line_buffer[char_read] = '\0';
@@ -109,6 +99,9 @@ void execteArg(char **cmd)
 {
 	pid_t pchild;
 	int status;
+
+	fflush(stdout);
+	fflush(stdin);
 
 	switch ((pchild = fork()))
 	{
@@ -178,6 +171,5 @@ int getNumtoks(const char *__restrict__ st, const char *__restrict__ delim)
 		}
 	}
 	return oo;
-
 }
 

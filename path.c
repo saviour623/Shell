@@ -14,8 +14,7 @@
 char *path(char *cmd, int *status)
 {
 	char *env_path;
-	size_t env_len;
-	char *cpy_path;
+	char cpy_path[MAX_ENVPATH_LEN]; /* this is faster than DMA because we can skip finding path length when it is large */
 
 	env_path = getenv("PATH");
 	*status = -1;
@@ -23,16 +22,10 @@ char *path(char *cmd, int *status)
 	if ((env_path == NULL) || (cmd == NULL || *cmd == 0) || (status == NULL))
 		return (NULL);
 
-	env_len = strlen(env_path);
-
-	if (GLN_MALLOC(cpy_path, NULL, sizeof(char *) * env_len) == 0)
-		return (NULL);
-
-	str_cpy(cpy_path, env_path, env_len);
+	str_cpy(cpy_path, env_path, MAX_ENVPATH_LEN);
 
 	env_path = search_path(cpy_path, cmd, status);
 
-	free(cpy_path);
 	return (env_path);
 }
 

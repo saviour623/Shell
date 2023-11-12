@@ -14,7 +14,7 @@ int stdin_getchar(void)
 {
 	static char c __attribute__((unused));
 	int oo = 0;
-
+	fflush(stdin);
 	return ((oo = read(0, &c, 1)) < 0 ? -1 : oo == 0 ? 0 : c);
 }
 

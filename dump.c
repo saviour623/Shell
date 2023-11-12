@@ -1,6 +1,7 @@
 #include "shell_header.h"
 int strtok_sh(const char *__restrict__ s, const char *__restrict__ del, char **vec, size_t vecsize);
 
+//used standard library: realloc; strtok; setjump, longjump, strlen
 
 int strtok_sh(const char *__restrict__ s, const char *__restrict__ del, char **vec, size_t vecsize)
 {
