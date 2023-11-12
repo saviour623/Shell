@@ -3,6 +3,20 @@
 #define ACCESS_CMD(cmd, mode, stat)		\
 	(!((stat) = access((cmd), (mode))))
 
+typedef struct built_ins
+{
+	char *built_in_name;
+	void (*built_exe)(char *, int *status, struct shell_info);
+} built_in_name;
+
+typedef shell_info
+{
+	char *cmd;
+	char **cmd_opt;
+ 	bool cmd_sep;
+	built_ins *cmd_bltn;
+}
+
 /**
  * path - finds the path and existence of a file from the PATH environment.
  * @cmd: file
@@ -16,6 +30,12 @@ char *path(char *cmd, int *status)
 	char *env_path;
 	char cpy_path[MAX_ENVPATH_LEN]; /* this is faster than DMA because we can skip finding path length when it is large */
 
+	/** bultins
+	 * cd
+	 * exit
+	 */
+
+	while (strcmp(cmd, )
 	env_path = getenv("PATH");
 	*status = -1;
 
@@ -25,7 +45,6 @@ char *path(char *cmd, int *status)
 	str_cpy(cpy_path, env_path, MAX_ENVPATH_LEN);
 
 	env_path = search_path(cpy_path, cmd, status);
-
 	return (env_path);
 }
 
@@ -33,7 +52,7 @@ char *path(char *cmd, int *status)
  * search_path - searches for executive permission of file.
  * @cmd: file
  * @env_path: environment path
- * @status: -1 on error, 0, if found, 2 if not in path but no error.
+ * @status: -1 on error, 0, if found, 1, if already a path, not exe, 2 if not in path but no error.
  * Return: returns the path appended to file is successful else NULL.
  */
 char *search_path(char *__restrict__ env_path, char *cmd, int *status)

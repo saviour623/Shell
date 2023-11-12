@@ -1,0 +1,8 @@
+fix:
+
+1. getline with no argument - after a space won't quit with Ctrl d
+e.g
+$ _ _ _ (CTRL D)
+(_ is space)
+
+2. path like ./... won't execcute
