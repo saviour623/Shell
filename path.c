@@ -5,17 +5,23 @@
 
 typedef struct built_ins
 {
-	char *built_in_name;
-	void (*built_exe)(char *, int *status, struct shell_info);
+	char *builtin_name;
+	void (*builtin_exe)(char *, int *status, struct shell_info);
 } built_in_name;
+
+typedef struct cmd_alias
+{
+	char *alias;
+	char *path;
+} cmd_alias;
 
 typedef shell_info
 {
 	char *cmd;
 	char **cmd_opt;
- 	bool cmd_sep;
+	bool cmd_sep;
 	built_ins *cmd_bltn;
-}
+};
 
 /**
  * path - finds the path and existence of a file from the PATH environment.
@@ -25,17 +31,34 @@ typedef shell_info
  * 3, ordinary file - 4, file is a directory.
  * Return: NULL on error, else the absolute path of the file.
  */
+#define BUILT_IN_TABLE(...)\
+	{\
+		{"exit", exit_shell_func},				\
+		{"cd", cd_directory_func},						\
+		{"env", env_func},\
+		{"setenv", set_environ_func},\
+		{"unsetenv", unset_environ_func},\
+		{NULL, NULL}\
+	}
 char *path(char *cmd, int *status)
 {
 	char *env_path;
 	char cpy_path[MAX_ENVPATH_LEN]; /* this is faster than DMA because we can skip finding path length when it is large */
+	char *ptr;
 
-	/** bultins
-	 * cd
-	 * exit
-	 */
+	built_ins builtin_func[] = BUILT_IN_TABLE(NULL);
 
-	while (strcmp(cmd, )
+	while ((ptr = (builtin_func[oo]).builtin_name) != NULL)
+	{
+		if (strcmp(ptr, cmd))
+		{
+			*status = (builtin_func[oo]).builtin_exe(cmd); //cmd, arguments env
+			if (status == -1)
+				eRR_routine(0);
+			return (NULL);
+		}
+	}
+	
 	env_path = getenv("PATH");
 	*status = -1;
 
