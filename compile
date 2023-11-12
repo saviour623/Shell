@@ -1,1 +1,1 @@
--Wall -Wextra -pedantic -std=gnu89 mainshell.c ngetline.c path.c utils.c -o myshell 
+-Wall -Wextra -pedantic -std=gnu89 mainshell.c ngetline.c path.c utils.c builtins.c -o myshell 

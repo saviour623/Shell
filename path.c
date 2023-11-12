@@ -11,10 +11,35 @@
  * 3, ordinary file - 4, file is a directory.
  * Return: NULL on error, else the absolute path of the file.
  */
+#define BUILT_IN_TABLE(NULL_NULL)\
+	{\
+		{"exit", exit_shell_func},				\
+		{"cd", cd_directory_func},						\
+		{"env", env_func},\
+		{"setenv", set_environ_func},\
+		{"unsetenv", unset_environ_func},\
+		{NULL, NULL}\
+	}
 char *path(char *cmd, int *status)
 {
+	register char *ptr = NULL;
+	register int oo = 0;
 	char *env_path;
 	char cpy_path[MAX_ENVPATH_LEN]; /* this is faster than DMA because we can skip finding path length when it is large */
+	built_ins builtin_func[] = BUILT_IN_TABLE(NULL);
+	shell_info info = {0};
+
+	while ((ptr = (builtin_func[oo]).builtin_name) != NULL)
+	{
+		if (strcmp(ptr, cmd))
+		{
+			(builtin_func[oo]).builtin_exe(&info); /* cmd, arguments env */
+			if (*status == -1)
+				eRR_routine(0);
+			return (NULL);
+		}
+		oo++;
+	}
 
 	env_path = getenv("PATH");
 	*status = -1;
@@ -25,7 +50,6 @@ char *path(char *cmd, int *status)
 	str_cpy(cpy_path, env_path, MAX_ENVPATH_LEN);
 
 	env_path = search_path(cpy_path, cmd, status);
-
 	return (env_path);
 }
 
@@ -33,7 +57,7 @@ char *path(char *cmd, int *status)
  * search_path - searches for executive permission of file.
  * @cmd: file
  * @env_path: environment path
- * @status: -1 on error, 0, if found, 2 if not in path but no error.
+ * @status: -1 on error, 0, if found, 1, if already a path, not exe, 2 if not in path but no error.
  * Return: returns the path appended to file is successful else NULL.
  */
 char *search_path(char *__restrict__ env_path, char *cmd, int *status)

@@ -14,6 +14,8 @@ __attribute__((noreturn)) void eRR_routine(long err)
 
 void sig_interrupt(int sig __UNUSED__)
 {
+	/* another interrupt may occur when handling signal resulting to
+	 * two prompt, unfortunately sigaction() is not supported so... yep */
 	fflush(stdout);
 	write(1, "\n", 2);
 	write(1, (char *)sig_prompt, strlen((char *)sig_prompt));
@@ -28,7 +30,7 @@ int main(int argc __UNUSED__, char **argv __UNUSED__)
 
 	if ((argc == 1) || strcmp(argv[1], "-i"))
 	{
-	   	if (interactive_mode(argc, argv) == -1)
+		if (interactive_mode(argc, argv) == -1)
 			eRR_routine(ERRSTR);
 	}
 	return 0;
@@ -59,7 +61,7 @@ int interactive_mode(int argc __UNUSED__, char **argv __UNUSED__)
 
 		line_buffer = NULL;
 		line = 0;
-		
+
 		char_read = stdin_getline(&line_buffer, &line);
 
 		if (char_read == -1)
@@ -80,8 +82,8 @@ int interactive_mode(int argc __UNUSED__, char **argv __UNUSED__)
 				goto free;
 
 			pathrc != NULL ? *tokens = pathrc : 0;
-				
-			/* check if it is a directory */	
+
+			/* check if it is a directory */
 			/* find builtin */
 			/* find alias */
 			execteArg(tokens);
