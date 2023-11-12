@@ -38,6 +38,32 @@ extern char **environ;
 #define MAX_ENVPATH_LEN 4096UL << 5
 #define restrict __restrict__
 
+typedef struct built_ins built_ins;
+typedef struct shell_info shell_info;
+typedef struct cmd_alias cmd_alias;
+
+struct shell_info
+{
+	char *cmd;
+	char **cmd_opt;
+	bool cmd_sep;
+	built_ins *cmd_bltn;
+};
+
+struct built_ins
+{
+	char *builtin_name;
+	void (*builtin_exe)(struct shell_info *);
+};
+
+struct cmd_alias
+{
+	char *alias;
+	char *path;
+};
+
+void eRR_routine(long err);
+
 void *glnrealloc(void *oldmem, size_t size);
 int interactive_mode(int argc, char **argv);
 int getNumtoks(const char *__restrict__, const char *__restrict__);
@@ -51,9 +77,9 @@ char *path(char *, int *);
 char *search_path(char *__restrict__ env_path, char *cmd, int *status);
 
 /* builtin functions */
-void exit_shell_func(struct *shell_info);
-void cd_directory_func(struct *shell_info);
-void env_func(struct *shell_info);
-void set_environ_func(struct *shell_info);
-void unset_environ_func(struct *shell_info);
+void exit_shell_func(struct shell_info *);
+void cd_directory_func(struct shell_info *);
+void env_func(struct shell_info *);
+void set_environ_func(struct shell_info *);
+void unset_environ_func(struct shell_info *);
 #endif
