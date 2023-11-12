@@ -41,6 +41,6 @@ ssize_t stdin_getline(char **lineptr, size_t *n);
 int stdin_getchar(void);
 ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len);
 void execteArg(char **cmd);
-char *path(const char *, int *);
-char *search_path(char *__restrict__ env_path, const char *cmd, int *status);
+char *path(char *, int *);
+char *search_path(char *__restrict__ env_path, char *cmd, int *status);
 #endif

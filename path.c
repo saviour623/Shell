@@ -9,7 +9,7 @@
  * @status: if -1, error; 0, file is found and is an executable; 1, file is a path; 2 file is not executable; 3, ordinary file; 4, file is a directory.
  * @Return: NULL on error, else the absolute path of the file.
  */
-char *path(const char *cmd, int *status)
+char *path(char *cmd, int *status)
 {
 	char *env_path = getenv("PATH");
 	size_t env_len;
@@ -40,10 +40,10 @@ char *path(const char *cmd, int *status)
  * status: -1 on error, 0, if found, 2 if not in path but no error.
  * Return: returns the path appended to file is successful else NULL.
  */
-char *search_path(char *__restrict__ env_path, const char *cmd, int *status)
+char *search_path(char *__restrict__ env_path, char *cmd, int *status)
 {
-	char *abs_path,  *tmp_path = env_path;
-	register int cmdLen, noPath, oo, ee;
+	char *abs_path,  *tmp = cmd;
+	register int cmdLen, is_path, oo, ee;
 
 	*status = -1; /* initially set to error */
 
@@ -51,11 +51,11 @@ char *search_path(char *__restrict__ env_path, const char *cmd, int *status)
 		return (NULL);
 
 	/* check if cmd is a path (preceded with '/') */
-	while(!(noPath = delimCharcmp("/", tmp_path++)));
+	while (!(is_path = delimCharcmp("/", tmp)) && *tmp++);
 
-	if (noPath == false)
+	if (is_path == true)
 	{
-		*status = access(cmd, F_OK | X_OK) == 0 ? 1 : -1;
+		*status = access(cmd, F_OK | X_OK) == 0 ? 1 : 2;
 		return (NULL);
 	}
 	cmdLen = strlen(cmd);
@@ -78,9 +78,8 @@ char *search_path(char *__restrict__ env_path, const char *cmd, int *status)
 		if (ACCESS_CMD(abs_path, F_OK | X_OK, *status) == true)
 			break;
 
-		*status = 2;
 		free(abs_path);
 		env_path = abs_path = NULL;
 	}
-	return *status == 0 ? abs_path : NULL;
+	return *status == 0 ? abs_path : ((*status = 2), NULL);
 }

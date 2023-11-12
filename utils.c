@@ -43,3 +43,24 @@ ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t le
 ret:
 	return (oo);
 }
+
+/**
+ * delimCharcmp - check if a char is a delimiter.
+ * @delim: delimiter
+ * @cmp: character
+ * Return: true if it a delimiter, else false
+ */
+int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp)
+{
+	char c __attribute__((unused));
+
+	if (delim == NULL || cmp == NULL)
+		return -1;
+
+	for (; (c = *delim); delim++)
+	{
+		if (c == *cmp)
+			return true;
+	}
+	return false;
+}

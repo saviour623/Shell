@@ -86,16 +86,18 @@ restart_int_sig: /* since we can't use setjmp */
 		{
 			pathrc = path(*tokens, &status);
 
-			if ((pathrc == NULL) && (status != 1))
-				continue;
+			if ((pathrc == NULL) && (status != 2 || (status != 1)))
+				goto free;
 
+			pathrc != NULL ? *tokens = pathrc : 0;
+				
 			/* check if it is a directory */	
 			/* find builtin */
 			/* find alias */
-			*tokens = pathrc;
 			execteArg(tokens);
+			free(pathrc);
 		}
-		free(*tokens);
+	free:
 		free(line_buffer);
 		free(tokens);
 	} while (is_interactive_tty == true);
@@ -108,7 +110,6 @@ void execteArg(char **cmd)
 	pid_t pchild;
 	int status;
 
-	fflush(stdout);
 	switch ((pchild = fork()))
 	{
 		case -1:
@@ -180,17 +181,3 @@ int getNumtoks(const char *__restrict__ st, const char *__restrict__ delim)
 
 }
 
-int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp)
-{
-	char c __attribute__((unused));
-
-	if (delim == NULL || cmp == NULL)
-		return -1;
-
-	for (; (c = *delim); delim++)
-	{
-		if (c == *cmp)
-			return true;
-	}
-	return false;
-}
