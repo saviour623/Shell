@@ -49,4 +49,11 @@ ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t le
 void execteArg(char **cmd);
 char *path(char *, int *);
 char *search_path(char *__restrict__ env_path, char *cmd, int *status);
+
+/* builtin functions */
+void exit_shell_func(struct *shell_info);
+void cd_directory_func(struct *shell_info);
+void env_func(struct *shell_info);
+void set_environ_func(struct *shell_info);
+void unset_environ_func(struct *shell_info);
 #endif
