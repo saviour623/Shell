@@ -20,7 +20,7 @@ char *path(char *cmd, int *status)
 	env_path = getenv("PATH");
 	*status = -1;
 
-	if (env_path == NULL && (cmd == NULL || *cmd == 0) || status == NULL)
+	if ((env_path == NULL) || (cmd == NULL || *cmd == 0) || (status == NULL))
 		return (NULL);
 
 	env_len = strlen(env_path);
@@ -45,7 +45,7 @@ char *path(char *cmd, int *status)
  */
 char *search_path(char *__restrict__ env_path, char *cmd, int *status)
 {
-	register int cmdLen, is_path, oo, ee;
+	register int cmdLen, is_path, ee;
 	char *tmp, *abs_path;
 
 	*status = -1; /* initially set to error */
@@ -84,5 +84,5 @@ char *search_path(char *__restrict__ env_path, char *cmd, int *status)
 		free(abs_path);
 		env_path = abs_path = NULL;
 	}
-	return (*status == 0 ? abs_path : (*status = 2), NULL);
+	return (*status == 0 ? abs_path : ((*status = 2), NULL));
 }
