@@ -58,11 +58,12 @@ struct built_ins
 
 struct cmd_alias
 {
-	char *alias;
+	char *name;
 	char *path;
+	struct cmd_alias *nxt_alias;
 };
 
-void eRR_routine(long err);
+void eRR_routine(long err) __attribute__((noreturn));
 
 void *glnrealloc(void *oldmem, size_t size);
 int interactive_mode(int argc, char **argv);
@@ -75,6 +76,7 @@ ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t le
 void execteArg(char **cmd);
 char *path(char *, int *);
 char *search_path(char *__restrict__ env_path, char *cmd, int *status);
+char *search_alias(char *__restrict__ cmd, cmd_alias *__alias);
 
 /* builtin functions */
 void exit_shell_func(struct shell_info *);

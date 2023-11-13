@@ -25,32 +25,50 @@ char *path(char *cmd, int *status)
 	register char *ptr = NULL;
 	register int oo = 0;
 	char *env_path;
-	char cpy_path[MAX_ENVPATH_LEN]; /* this is faster than DMA because we can skip finding path length when it is large */
+	char cpy_path[MAX_ENVPATH_LEN];
 	built_ins builtin_func[] = BUILT_IN_TABLE(NULL);
+	cmd_alias *alias = NULL;
 	shell_info info = {0};
 
+	if ((cmd == NULL || *cmd == 0) || (status == NULL))
+		return (NULL);
+
+	*status = -1;
 	while ((ptr = (builtin_func[oo]).builtin_name) != NULL)
 	{
-		if (strcmp(ptr, cmd))
+		if (strcmp(ptr, cmd) == 0)
 		{
 			(builtin_func[oo]).builtin_exe(&info); /* cmd, arguments env */
-			if (*status == -1)
-				eRR_routine(0);
 			return (NULL);
 		}
 		oo++;
 	}
-
-	env_path = getenv("PATH");
-	*status = -1;
-
-	if ((env_path == NULL) || (cmd == NULL || *cmd == 0) || (status == NULL))
-		return (NULL);
+	/* search alias */
+	ptr = search_alias(cmd, alias);
+	if (ptr != NULL)
+		env_path = ptr;
+	else
+		env_path = getenv("PATH");
+	if (env_path == NULL)
+		return (NULL); /* can't locate file error here */
 
 	str_cpy(cpy_path, env_path, MAX_ENVPATH_LEN);
 
 	env_path = search_path(cpy_path, cmd, status);
 	return (env_path);
+}
+
+char *search_alias(char *cmd, cmd_alias *__alias)
+{
+	cmd_alias *ptr = __alias;
+
+	while (ptr != NULL)
+	{
+		if (strcmp(cmd, ptr->name) == 0)
+			return (ptr->path);
+		ptr = ptr->nxt_alias;
+	}
+	return (NULL);
 }
 
 /**
