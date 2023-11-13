@@ -27,7 +27,7 @@ const char *GLOBAL_SHELL_RECG_ERROR_MSG[27] = {
 void errMsg(int errnum, struct shell_info *procinfo)
 {
 	char s[256];
-	register size_t len, procnum, oo = 0, pp = 0;
+	register size_t len, procnum, oo = 0;
 
 	len = str_cpy(s, procinfo->shell_name, 0);
 	parse_colmn_space_tstr(s, len);
@@ -50,9 +50,7 @@ void errMsg(int errnum, struct shell_info *procinfo)
 
 	len += str_cpy((s + len), procinfo->cmd, 0);
 	parse_colmn_space_tstr(s, len);
-
 	s[len] = 0;
-	puts(s);
 
 	_nputs(s, 0);
 	_nputs(GLOBAL_SHELL_RECG_ERROR_MSG[errnum], 1);
