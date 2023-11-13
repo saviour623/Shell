@@ -15,11 +15,13 @@ int main(void)
 	pid_t p_d = getpid();
 	char *prt = &etext;
 	char buffer[1024];
+	(buffer[0] = 'o', buffer[1] = 'l');
 
+	puts(buffer);
 	printf("%p\n", prt);
 
 	long fd, cnt;
-
+	
 	fd = open("/proc/self/cmdline", O_RDONLY);
 
 	if (fd == -1)

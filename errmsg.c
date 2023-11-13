@@ -17,18 +17,30 @@ __attribute__((noreturn)) void eRR_routine(long err)
 	(void)err;
 	exit(EXIT_FAILURE);
 }
+
+const char *GLOBAL_SHELL_RECG_ERROR_MSG[27] = {
+	"not found", "permission denied"
+} __UNUSED__;
+
+#define parse_colmn_space_tstr(s, l) (s[l++] = ':', s[l++] = ' ')
+
 void errMsg(int errnum, struct shell_info *procinfo)
 {
-	char s[256];
-	size_t len;
+	register char s[256];
+	register size_t len, procnum;
+
 	len = str_cpy(s, procinfo->shell_name, 0);
+	parse_colmn_space_tstr(s, len);
 
-	s[len++] = ':';
-	s[len++] = ' ';
+/* parse num */
+	procnum = procinfo->cmd_cnt;
 
-	/* parse num */
+	do
 	len += str_cpy((s + len), procinfo->cmd, 0);
-	len 
+	parse_colmn_space_tstr(s, len);
+
+	_nputs(s, 0);
+	_nputs(GLOBAL_SHELL_RECG_ERROR_MSG[errnum], 1);
 }
 char *nitoa(ssize_t i)
 {
