@@ -17,15 +17,18 @@ void sig_interrupt(int sig __UNUSED__)
 
 int main(int argc __UNUSED__, char **argv __UNUSED__)
 {
+	shell_info sh_info = {"myshell", "ls", NULL, 6, 0, NULL};
+
 	if (argc == 2 && strcmp("--help", argv[1]))
 	{
 		eRR_routine(ERRMSG);
 	}
 
+	errMsg(1, &sh_info);
 	if ((argc == 1) || strcmp(argv[1], "-i"))
 	{
-		if (interactive_mode(argc, argv) == -1)
-			eRR_routine(ERRSTR);
+		//	if (interactive_mode(argc, argv) == -1)
+		//		eRR_routine(ERRSTR);
 	}
 	return 0;
 }

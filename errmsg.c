@@ -34,19 +34,26 @@ void errMsg(int errnum, struct shell_info *procinfo)
 
 /* parse num */
 	procnum = procinfo->cmd_cnt;
-	while ((procnum /= 10) && ++oo);
+	while (procnum && oo++)
+		procnum /= 10;
+
 	procnum = procinfo->cmd_cnt;
 	while (procnum)
 	{
-		*((s + len) + oo) = ((procnum % 10) + 48);
+		puts("in");
+		*((s + len) + oo) = (procnum % 10) - 48;
+		procnum /= 10;
 		oo--;
 	}
 	len += oo;
 	len += str_cpy((s + len), procinfo->cmd, 0);
 	parse_colmn_space_tstr(s, len);
 
-	_nputs(s, 0);
-	_nputs(GLOBAL_SHELL_RECG_ERROR_MSG[errnum], 1);
+	s[len] = 0;
+	puts(s);
+
+	//_nputs(s, 0);
+//	_nputs(GLOBAL_SHELL_RECG_ERROR_MSG[errnum], 1); */
 }
 
 size_t _nputs(const char *str, int newline)
