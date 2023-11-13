@@ -8,7 +8,7 @@
  * @cmd: file
  * @status: if -1, error - 0, file is found and is an executable -
  * 1, file is a path - 2 file is not executable -
- * 3, ordinary file - 4, file is a directory.
+  * 3, ordinary file - 4, file is a directory.
  * Return: NULL on error, else the absolute path of the file.
  */
 #define BUILT_IN_TABLE(NULL_NULL)\

@@ -2,12 +2,6 @@
 
 volatile char *sig_prompt;
 
-__attribute__((noreturn)) void eRR_routine(long err)
-{
-	(void)err;
-	exit(EXIT_FAILURE);
-}
-
 #define ROOT_CMP(B)\
 	((B[0] == '/') && (B[1] == 'r') &&  (B[2] == 'o')\
 	 && (B[3] == 'o') &&  (B[4] == 't'))

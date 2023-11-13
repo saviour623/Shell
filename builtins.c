@@ -9,6 +9,9 @@ void env_func(struct shell_info *info __UNUSED__)
 {
 	register char **env = environ;
 
+	if (env == NULL)
+		eRR_routine(0);
+
 	fflush(stdout);
 
 	for (; *env != NULL; env++)
@@ -17,7 +20,7 @@ void env_func(struct shell_info *info __UNUSED__)
 		write(STDOUT_FILENO, "\n", 1);
 	}
 }
-char *get_env(char *restrict envpath)
+char *get_env(char *restrict envpath __UNUSED__)
 {
 }
 void set_environ_func(struct shell_info *info __UNUSED__)

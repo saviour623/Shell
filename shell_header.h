@@ -44,8 +44,10 @@ typedef struct cmd_alias cmd_alias;
 
 struct shell_info
 {
+	char *shell_name;
 	char *cmd;
 	char **cmd_opt;
+	size_t cmd_cnt;
 	bool cmd_sep;
 	built_ins *cmd_bltn;
 };
@@ -64,6 +66,12 @@ struct cmd_alias
 };
 
 void eRR_routine(long err) __attribute__((noreturn));
+void errMsg(int errnum, struct shell_info *procinfo);
+
+/* utils */
+size_t _nputs(const char *str, int newline);
+char *nitoa(ssize_t i);
+ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len);
 
 void *glnrealloc(void *oldmem, size_t size);
 int interactive_mode(int argc, char **argv);
@@ -72,7 +80,7 @@ char **getcmdString(char *__restrict__);
 int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp);
 ssize_t stdin_getline(char **lineptr, size_t *n);
 int stdin_getchar(void);
-ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len);
+
 void execteArg(char **cmd);
 char *path(char *, int *);
 char *search_path(char *__restrict__ env_path, char *cmd, int *status);

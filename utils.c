@@ -20,6 +20,7 @@ void *glnrealloc(void *oldmem, size_t size)
 
 /**
  * str_cpy - copies @len bytes from src to dest.
+ * str_cpy expects a null terminated string to copy else its behaviour is undefined .
  * @dest: destination buffemr.
  * @src: source.
  * @len: length of bytes to copy - however, it may depend of on the length of
@@ -34,6 +35,8 @@ ssize_t str_cpy(char *restrict dest, const char * restrict src, size_t len)
 
 	if (dest == NULL || src == NULL)
 		return (-1);
+	if (len == 0)
+		len = SIZE_MAX; /* if len is zero lets rely on the null byte to end copy */
 
 	for (oo = 0; (c = src[oo]) != 0 && (oo < len); oo++)
 	{
