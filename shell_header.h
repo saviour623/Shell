@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <limits.h>
 #include <fcntl.h>

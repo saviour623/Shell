@@ -11,7 +11,7 @@ struct shell_info
 	built_ins *cmd_bltn;
 };
 */
-//sh: 1: l: not found
+/* h: 1: l: not found */
 __attribute__((noreturn)) void eRR_routine(long err)
 {
 	(void)err;
@@ -20,31 +20,35 @@ __attribute__((noreturn)) void eRR_routine(long err)
 
 const char *GLOBAL_SHELL_RECG_ERROR_MSG[27] = {
 	"not found", "permission denied"
-} __UNUSED__;
+};
 
 #define parse_colmn_space_tstr(s, l) (s[l++] = ':', s[l++] = ' ')
 
 void errMsg(int errnum, struct shell_info *procinfo)
 {
-	register char s[256];
-	register size_t len, procnum;
+	char s[256];
+	register size_t len, procnum, oo = 0;
 
 	len = str_cpy(s, procinfo->shell_name, 0);
 	parse_colmn_space_tstr(s, len);
 
 /* parse num */
 	procnum = procinfo->cmd_cnt;
-
-	do
+	while ((procnum /= 10) && ++oo);
+	procnum = procinfo->cmd_cnt;
+	while (procnum)
+	{
+		*((s + len) + oo) = ((procnum % 10) + 48);
+		oo--;
+	}
+	len += oo;
 	len += str_cpy((s + len), procinfo->cmd, 0);
 	parse_colmn_space_tstr(s, len);
 
 	_nputs(s, 0);
 	_nputs(GLOBAL_SHELL_RECG_ERROR_MSG[errnum], 1);
 }
-char *nitoa(ssize_t i)
-{
-}
+
 size_t _nputs(const char *str, int newline)
 {
 	register size_t len;

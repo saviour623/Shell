@@ -22,6 +22,7 @@ void env_func(struct shell_info *info __UNUSED__)
 }
 char *get_env(char *restrict envpath __UNUSED__)
 {
+	return NULL;
 }
 void set_environ_func(struct shell_info *info __UNUSED__)
 {}
