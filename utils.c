@@ -70,3 +70,31 @@ int delimCharcmp(const char *restrict delim, const char *restrict cmp)
 	}
 	return (false);
 }
+
+/**
+ * _nputs - writes @str to file
+ * @fd: file descriptor
+ * @str: bytes to write
+ * @newline: if set, appends a newline after writing to file
+ */
+size_t _nputs(int fd, const char *str, int newline)
+{
+	register size_t len;
+
+	if (str == NULL)
+		return (-1);
+
+	if (*str == 0)
+		return (0);
+
+	len = strlen(str);
+
+	write(fd, str, len);
+
+	if (newline)
+	{
+		write(fd, "\n", 1);
+		len++;
+	}
+	return (len);
+}

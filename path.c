@@ -20,31 +20,30 @@
 		{"unsetenv", unset_environ_func},\
 		{NULL, NULL}\
 	}
-char *path(char *cmd, int *status)
+char *path(shell_info *sh_info)
 {
 	register char *ptr = NULL;
 	register int oo = 0;
-	char *env_path;
+	char *env_path = NULL, *cmd = sh_info->cmd;
 	char cpy_path[MAX_ENVPATH_LEN];
 	built_ins builtin_func[] = BUILT_IN_TABLE(NULL);
-	cmd_alias *alias = NULL;
-	shell_info info = {0};
 
-	if ((cmd == NULL || *cmd == 0) || (status == NULL))
+	if (cmd == NULL || cmd == 0)
 		return (NULL);
 
-	*status = -1;
+	sh_info->cmd_cnt += 1;
+	sh_info->status = -1;
 	while ((ptr = (builtin_func[oo]).builtin_name) != NULL)
 	{
 		if (strcmp(ptr, cmd) == 0)
 		{
-			(builtin_func[oo]).builtin_exe(&info); /* cmd, arguments env */
+			(builtin_func[oo]).builtin_exe(sh_info); /* cmd, arguments env */
 			return (NULL);
 		}
 		oo++;
 	}
 	/* search alias */
-	ptr = search_alias(cmd, alias);
+	ptr = search_alias(cmd, sh_info->alias);
 	if (ptr != NULL)
 		env_path = ptr;
 	else
@@ -53,8 +52,14 @@ char *path(char *cmd, int *status)
 		return (NULL); /* can't locate file error here */
 
 	str_cpy(cpy_path, env_path, MAX_ENVPATH_LEN);
+	env_path = search_path(cpy_path, cmd, &sh_info->status);
 
-	env_path = search_path(cpy_path, cmd, status);
+	if ((env_path == NULL) && (sh_info->status == 2))
+	{
+		errMsg(ERR_SHLL_NOENT, sh_info);
+		sh->status = -1;
+	}
+
 	return (env_path);
 }
 

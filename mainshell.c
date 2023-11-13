@@ -17,29 +17,31 @@ void sig_interrupt(int sig __UNUSED__)
 
 int main(int argc __UNUSED__, char **argv __UNUSED__)
 {
-	shell_info sh_info = {"myshell", "ls", NULL, 6, 0, NULL};
+	shell_info sh_info = {0};
+	sh_info.shell_name = argv[0];
 
 	if (argc == 2 && strcmp("--help", argv[1]))
 	{
 		eRR_routine(ERRMSG);
 	}
 
-	errMsg(1, &sh_info);
 	if ((argc == 1) || strcmp(argv[1], "-i"))
 	{
-		//	if (interactive_mode(argc, argv) == -1)
-		//		eRR_routine(ERRSTR);
+		sh_info.argv = argv;
+		sh_info.argc = argc;
+		if (interactive_mode(&sh_info) == -1)
+			eRR_routine(ERRSTR);
 	}
 	return 0;
 }
 
-int interactive_mode(int argc __UNUSED__, char **argv __UNUSED__)
+int interactive_mode(shell_info *sh_info)
 {
 	char *env_tmp = getenv("HOME"), *prompt;
 	char **tokens, *line_buffer = NULL;
 	size_t line = 0;
 	ssize_t char_read;
-	int is_interactive_tty, status;
+	int is_interactive_tty;
 	char *pathrc;
 
 	if (env_tmp == NULL)
@@ -73,17 +75,25 @@ int interactive_mode(int argc __UNUSED__, char **argv __UNUSED__)
 
 		if (tokens != NULL)
 		{
-			pathrc = path(*tokens, &status);
+			sh_info->cmd = *tokens;
+			sh_info->cmd_opt = tokens;
+			pathrc = path(sh_info);
 
-			if ((pathrc == NULL) && (status != 2 || (status != 1)))
-				goto free;
+			if (pathrc == NULL)
+			{
+				if ((sh_info->status == 2) || sh_info->status == -1)
+				{
+					printf("%d\n", sh_info->status);
+					goto free;
+				}
+			}
 
-			pathrc != NULL ? *tokens = pathrc : 0;
+			pathrc != NULL ? sh_info->cmd = pathrc : 0;
 
 			/* check if it is a directory */
 			/* find builtin */
 			/* find alias */
-			execteArg(tokens);
+			execteArg(sh_info);
 			free(pathrc);
 		}
 	free:
@@ -94,7 +104,7 @@ int interactive_mode(int argc __UNUSED__, char **argv __UNUSED__)
 	return 0;
 }
 
-void execteArg(char **cmd)
+void execteArg(shell_info *sh_info)
 {
 	pid_t pchild;
 	int status;
@@ -105,16 +115,18 @@ void execteArg(char **cmd)
 	switch ((pchild = fork()))
 	{
 		case -1:
-			eRR_routine(errno);
+			errMsg(ERR_SHLL_EAGAIN, sh_info);;
 		case 0:
 			errno = 0;
-			execve(cmd[0], cmd, environ);
-			perror("execve");
-			exit(EXIT_SUCCESS);
+			execve(sh_info->cmd, sh_info->cmd_opt, environ);
+			exit(errno);
 		default:
 			do {
 				waitpid(pchild, &status, WUNTRACED);
 			} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+			if (status == EACCES)
+				errMsg(ERR_SHLL_PERM, sh_info);
+			//ENOMEM
 	}
 }
 

@@ -31,6 +31,14 @@
 #define ERRSTR 2
 #define ERRMEM 3
 
+#define	ERR_SHLL_NOENT 0
+#define	ERR_SHLL_PERM 1
+#define	ERR_SHLL_PROC 3
+#define	ERR_SHLL_RTU 4
+#define	ERR_SHLL_OMEM 5
+#define	ERR_SHLL_EOF 6
+#define ERR_SHLL_EAGAIN 7
+
 extern char **environ;
 
 #define GLN_MALLOC(nptr, optr, block)									\
@@ -46,11 +54,15 @@ typedef struct cmd_alias cmd_alias;
 struct shell_info
 {
 	char *shell_name;
+	char **argv;
 	char *cmd;
 	char **cmd_opt;
+	built_ins *path;
+	cmd_alias *alias;
 	size_t cmd_cnt;
+	int argc;
+	int status;
 	bool cmd_sep;
-	built_ins *cmd_bltn;
 };
 
 struct built_ins
@@ -70,20 +82,19 @@ void eRR_routine(long err) __attribute__((noreturn));
 void errMsg(int errnum, struct shell_info *procinfo);
 
 /* utils */
-size_t _nputs(const char *str, int newline);
-char *nitoa(ssize_t i);
+size_t _nputs(int fd, const char *str, int newline);
 ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len);
 
 void *glnrealloc(void *oldmem, size_t size);
-int interactive_mode(int argc, char **argv);
+int interactive_mode(shell_info *sh_info);
 int getNumtoks(const char *__restrict__, const char *__restrict__);
 char **getcmdString(char *__restrict__);
 int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp);
 ssize_t stdin_getline(char **lineptr, size_t *n);
 int stdin_getchar(void);
 
-void execteArg(char **cmd);
-char *path(char *, int *);
+void execteArg(shell_info *sh_info);
+char *path(shell_info *sh_info);
 char *search_path(char *__restrict__ env_path, char *cmd, int *status);
 char *search_alias(char *__restrict__ cmd, cmd_alias *__alias);
 
