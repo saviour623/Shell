@@ -5,4 +5,4 @@ e.g
 $ _ _ _ (CTRL D)
 (_ is space)
 
-2. path like ./... won't execcute
+2. ^@ (mull) character in getline

@@ -33,7 +33,7 @@ void errMsg(int errnum, struct shell_info *procinfo)
 
 	procnum = procinfo->cmd_cnt;
 	len += (oo - 1);
-	puts("^@");
+
 	while (procnum)
 	{
 		*(s + len) = (procnum % 10) + 48;
