@@ -52,6 +52,7 @@ int interactive_mode(shell_info *sh_info)
 		eRR_routine(2);
 	if (signal(SIGQUIT, sig_interrupt) == SIG_ERR)
 		exit(0);
+
 	do {
 		is_interactive_tty = isatty(STDIN_FILENO);
 		is_interactive_tty ? (void) printf("%s", prompt) : (void) 0;
@@ -120,7 +121,7 @@ void execteArg(shell_info *sh_info)
 			exit(errno);
 		default:
 			do {
-				waitpid(pchild, &status, WUNTRACED);
+				waitpid(pchild, &status, WUNTRACED | WCONTINUED);
 			} while (!WIFEXITED(status) && !WIFSIGNALED(status));
 			if (status == EACCES)
 				errMsg(ERR_SHLL_PERM, sh_info);
