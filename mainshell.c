@@ -82,10 +82,7 @@ int interactive_mode(shell_info *sh_info)
 			if (pathrc == NULL)
 			{
 				if ((sh_info->status == 2) || sh_info->status == -1)
-				{
-					printf("%d\n", sh_info->status);
 					goto free;
-				}
 			}
 
 			pathrc != NULL ? sh_info->cmd = pathrc : 0;
@@ -115,7 +112,8 @@ void execteArg(shell_info *sh_info)
 	switch ((pchild = fork()))
 	{
 		case -1:
-			errMsg(ERR_SHLL_EAGAIN, sh_info);;
+			errMsg(ERR_SHLL_EAGAIN, sh_info);
+			break;
 		case 0:
 			errno = 0;
 			execve(sh_info->cmd, sh_info->cmd_opt, environ);

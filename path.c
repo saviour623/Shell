@@ -57,7 +57,7 @@ char *path(shell_info *sh_info)
 	if ((env_path == NULL) && (sh_info->status == 2))
 	{
 		errMsg(ERR_SHLL_NOENT, sh_info);
-		sh->status = -1;
+		sh_info->status = -1;
 	}
 
 	return (env_path);

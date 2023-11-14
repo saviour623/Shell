@@ -33,11 +33,13 @@
 
 #define	ERR_SHLL_NOENT 0
 #define	ERR_SHLL_PERM 1
-#define	ERR_SHLL_PROC 3
-#define	ERR_SHLL_RTU 4
-#define	ERR_SHLL_OMEM 5
-#define	ERR_SHLL_EOF 6
-#define ERR_SHLL_EAGAIN 7
+#define	ERR_SHLL_PROC 2
+#define	ERR_SHLL_RTU 3
+#define	ERR_SHLL_OMEM 4
+#define	ERR_SHLL_EOF 5
+#define ERR_SHLL_EAGAIN 6
+#define ERR_SHLL_INVNUM 7
+#define ERR_SHLL_INVOPT 8
 
 extern char **environ;
 
@@ -62,6 +64,7 @@ struct shell_info
 	size_t cmd_cnt;
 	int argc;
 	int status;
+	bool err_info;
 	bool cmd_sep;
 };
 
@@ -84,6 +87,7 @@ void errMsg(int errnum, struct shell_info *procinfo);
 /* utils */
 size_t _nputs(int fd, const char *str, int newline);
 ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len);
+int _natoi(const char *s);
 
 void *glnrealloc(void *oldmem, size_t size);
 int interactive_mode(shell_info *sh_info);
@@ -104,4 +108,7 @@ void cd_directory_func(struct shell_info *);
 void env_func(struct shell_info *);
 void set_environ_func(struct shell_info *);
 void unset_environ_func(struct shell_info *);
+
+/* alias */
+void destroy_alias(cmd_alias *alias);
 #endif
