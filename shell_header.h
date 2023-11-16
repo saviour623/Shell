@@ -47,6 +47,7 @@ extern char **environ;
 	((nptr = glnrealloc(optr, sizeof(unsigned char) * block)) != NULL)
 
 #define MAX_ENVPATH_LEN 4096UL << 5
+#define SIG_ARGS_MAX 6
 #define restrict __restrict__
 
 typedef struct built_ins built_ins;

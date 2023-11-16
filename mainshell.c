@@ -1,18 +1,31 @@
 #include "shell_header.h"
 
-volatile char *sig_prompt;
+static volatile char *sig_prompt;
+static volatile shell_info *track_info;
 
-#define ROOT_CMP(B)\
+#define ROOT_CMP(B)										\
 	((B[0] == '/') && (B[1] == 'r') &&  (B[2] == 'o')\
 	 && (B[3] == 'o') &&  (B[4] == 't'))
 
+void sip(int sig __UNUSED__)
+{
+	return;
+}
 void sig_interrupt(int sig __UNUSED__)
 {
 	/* another interrupt may occur when handling signal resulting to
 	 * two prompt, unfortunately sigaction() is not supported so... yep */
-	fflush(stdout);
-	write(1, "\n", 2);
-	write(1, (char *)sig_prompt, strlen((char *)sig_prompt));
+	if (sig == SIGINT || sig == SIGQUIT)
+	{
+		fflush(stdout);
+		write(1, "\n", 2);
+		write(1, (char *)sig_prompt, strlen((char *)sig_prompt));
+	}
+	if (sig == SIGTERM)
+	{
+		/* cleanup */
+		exit_shell_func((shell_info *)track_info);
+	} 
 }
 
 int main(int argc __UNUSED__, char **argv __UNUSED__)
@@ -34,7 +47,20 @@ int main(int argc __UNUSED__, char **argv __UNUSED__)
 	}
 	return 0;
 }
+void set_signal(void (*sig_handler)(int), int nargs, int *args)
+{
+	if (args == NULL)
+		return;
 
+	if (nargs > SIG_ARGS_MAX)
+		return;
+
+	while (nargs--)
+	{
+		signal(*args, sig_handler); /* ignoring sig error here */
+		args++;
+	}
+}
 int interactive_mode(shell_info *sh_info)
 {
 	char *env_tmp = getenv("HOME"), *prompt;
@@ -43,15 +69,13 @@ int interactive_mode(shell_info *sh_info)
 	ssize_t char_read;
 	int is_interactive_tty;
 	char *pathrc;
-
+	int sig_list[] = {SIGINT, SIGQUIT, SIGTERM};
+	track_info = sh_info;
+	set_signal(sig_interrupt, sizeof sig_list / sizeof (int), sig_list);
+	
 	if (env_tmp == NULL)
 		eRR_routine(ERRNULL);
 	prompt = ROOT_CMP(env_tmp) ? "# " : "$ ";
-
-	if (signal(SIGINT, sig_interrupt) == SIG_ERR)
-		eRR_routine(2);
-	if (signal(SIGQUIT, sig_interrupt) == SIG_ERR)
-		exit(0);
 
 	do {
 		is_interactive_tty = isatty(STDIN_FILENO);
@@ -108,24 +132,32 @@ void execteArg(shell_info *sh_info)
 	int status;
 
 	fflush(stdout);
-	fflush(stdin);
-
 	switch ((pchild = fork()))
 	{
-		case -1:
-			errMsg(ERR_SHLL_EAGAIN, sh_info);
-			break;
-		case 0:
-			errno = 0;
-			execve(sh_info->cmd, sh_info->cmd_opt, environ);
-			exit(errno);
-		default:
-			do {
-				waitpid(pchild, &status, WUNTRACED | WCONTINUED);
-			} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-			if (status == EACCES)
-				errMsg(ERR_SHLL_PERM, sh_info);
-			//ENOMEM
+	case -1:
+		errMsg(ERR_SHLL_EAGAIN, sh_info);
+		break;
+	case 0:
+		execve(sh_info->cmd, sh_info->cmd_opt, environ);
+    	exit(errno == EACCES ? 1 : errno == ENOEXEC ? 9
+			 : errno == ENOMEM ? 4 : -1);
+	default:
+		do {
+
+			if (waitpid(pchild, &status, WUNTRACED | WCONTINUED) == -1)
+			{
+				if (errno != ECHILD)
+					errMsg(12, sh_info);
+				break;
+			}
+				
+		} while  (!WIFEXITED(status) && !WIFSIGNALED(status));
+	}
+
+	if (WIFEXITED(status))
+	{
+		(status = WEXITSTATUS(status)) && (status != -1)
+			? errMsg(status, sh_info) : /* other error occured */ (void)0;
 	}
 }
 

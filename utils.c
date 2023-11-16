@@ -63,6 +63,9 @@ int delimCharcmp(const char *restrict delim, const char *restrict cmp)
 	if (delim == NULL || cmp == NULL)
 		return (-1);
 
+	if (delim[0] != 0 && delim[1] == 0)
+		return *delim == *cmp;
+
 	for (; (c = *delim); delim++)
 	{
 		if (c == *cmp)

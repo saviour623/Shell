@@ -12,7 +12,8 @@ const char *GLOBAL_SHELL_RECG_ERROR_MSG[27] = {
 	"Resource temporarily unavailable",
 	"Out of memory", "unexpected end of file",
 	"Try again", "illegal number",
-	"illegal option"
+	"illegal option", "unrecognized executable",
+	"unable to open file", "unexpected error"
 };
 
 #define parse_colmn_space_tstr(s, l)\
