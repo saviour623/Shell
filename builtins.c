@@ -5,10 +5,10 @@ void exit_shell_func(struct shell_info *sh_info __UNUSED__)
 	int exit_status = EXIT_SUCCESS;
 
 	destroy_alias(sh_info->alias);
-	(void)(sh_info->cmd_opt[1] != NULL ?
+	(void)(sh_info->cmd_opt != NULL && sh_info->cmd_opt[1] != NULL ?
 		   (exit_status = _natoi(sh_info->cmd_opt[1])) : 0);
 
-	if (exit_status == -1)
+	if (exit_status == -SIZE_MAX)
 	{
 		sh_info->err_info = true;
 		errMsg(ERR_SHLL_INVNUM, sh_info);
@@ -33,7 +33,7 @@ int _natoi(const char *s)
 	{
 		if (!(c > 47 && c < 58))
 		{
-			n = -1;
+			n = -SIZE_MAX;
 			sgn = 1;
 			break;
 		}

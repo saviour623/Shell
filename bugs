@@ -6,3 +6,5 @@ $ _ _ _ (CTRL D)
 (_ is space)
 
 2. ^@ (mull) character in getline
+
+3. exit_shell_func and seg fault when sh_info is unused (i.e at first call which was terminated immediately with CTRL D) ... should sh_info be malloc'ed?

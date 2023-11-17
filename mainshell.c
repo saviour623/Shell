@@ -92,9 +92,9 @@ int interactive_mode(shell_info *sh_info)
 		{
 			free(line_buffer);
 			putchar('\n');
-			exit(-1);
+			//sh_info->cmd_opt = NULL;
+			exit_shell_func(sh_info);
 		}
-
 		line_buffer[char_read] = '\0';
 		tokens = getcmdString(line_buffer);
 
@@ -140,7 +140,7 @@ void execteArg(shell_info *sh_info)
 	case 0:
 		execve(sh_info->cmd, sh_info->cmd_opt, environ);
     	exit(errno == EACCES ? 1 : errno == ENOEXEC ? 9
-			 : errno == ENOMEM ? 4 : -1);
+			 : errno == ENOMEM ? 4 : 126);
 	default:
 		do {
 
@@ -148,15 +148,15 @@ void execteArg(shell_info *sh_info)
 			{
 				if (errno != ECHILD)
 					errMsg(12, sh_info);
-				break;
+				return;
 			}
 				
 		} while  (!WIFEXITED(status) && !WIFSIGNALED(status));
 	}
 
 	if (WIFEXITED(status))
-	{
-		(status = WEXITSTATUS(status)) && (status != -1)
+	{ 
+		(status = WEXITSTATUS(status)) && (status != 126)
 			? errMsg(status, sh_info) : /* other error occured */ (void)0;
 	}
 }
