@@ -1,67 +1,101 @@
 #include "shell_header.h"
-void /* Examine a wait() status using the W* macros */
-printWaitStatus(const char *msg, int status)
+#include<setjmp.h>
+
+#define sahandler sigactionhandler.sahandler
+#define sa_sigaction __sigaction_handler.sa_sigaction
+static sigjmp_buf envbuf;
+
+void sign(int sig __UNUSED__)
 {
-	if (msg != NULL)
-		printf("%s", msg);
-	if (WIFEXITED(status)) {
-		printf("child exited, status=%d\n", WEXITSTATUS(status));
-	} else if (WIFSIGNALED(status)) {
-		printf("child killed by signal %d (%s)",
-			   WTERMSIG(status), strsignal(WTERMSIG(status)));
-#ifdef WCOREDUMP /* Not in SUSv3, may be absent on some systems */
-		if (WCOREDUMP(status))
-			printf(" (core dumped)");
-#endif
-		printf("\n");
-	} else if (WIFSTOPPED(status)) {
-		printf("child stopped by signal %d (%s)\n",
-			   WSTOPSIG(status), strsignal(WSTOPSIG(status)));
-#ifdef WIFCONTINUED /* SUSv3 has this, but older Linux versions and
-					   some other UNIX implementations don't */
-	} else if (WIFCONTINUED(status)) {
-		printf("child continued\n");
-#endif
-	} else { /* Should never happen */
-		printf("what happened to this child? (status=%x)\n",
-			   (unsigned int) status);
-	}
+	sleep(10);
+	puts("sig");
 }
-
-
-int
-main(int argc, char *argv[])
+void sign2(int sig, siginfo_t *info, void *p)
+{
+	puts("here");
+	pause();
+}
+int sysb(char *);
+int main(int argc, char *argv[])
 {
 	int status;
-	pid_t childpid;
-	setbuf(stdout, NULL);
+	pid_t c;
+	int oo = 0;
+	struct sigaction sig, sig1;
+	SA_NOCLDSTOP, SA_RESTART, SA_SIGINFO;
 
-	signal(SIGINT, SIG_IGN);
-	switch ((childpid = fork()))
+	sysb("sleep");
+//	puts("here");
+
+/*
+//	sigaction();
+	switch ((c = fork()))
 	{
-		case -1:
-			perror("fork");
-			exit(-1);
-			break;
-		case 0:
-			signal(SIGINT, SIG_DFL);
-			execve("//", argv, 0);
-			int eer = errno;
-
-			exit(err == EACESS ? 8 : err == ENDEXEC ? 9
-				 : err == ETXTBSY ? 10 : EXIT_FAILURE);
-		default:
-			do {
-				waitpid(childpid, &status, WUNTRACED | WCONTINUED);
-				if (errno == ECHILD)
-					exit(0);
-			} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-			//ENOMEM
-	}
-	perror("try");
-	printf("%d\n", (int)status >> 8);
+	case -1:
+		puts("error");
+		exit(0);
+	case 0:
+		execve("./test", (char *[]){"-l"}, 0);
+	default:
+		while (wait(&status) != -1);
+		perror("wait");
+		} */
+	return(0);
 }
 
-//EACCES permission denied
-//ENOEXEC untecognized executable
-//ETXTBSY unable to open file
+int sysb(char *cmd)
+{
+	sigset_t blockMask, origMask;
+	struct sigaction saIgnore, saOrigQuit, saOrigInt, saDefault;
+	pid_t childPid;
+	int status, savedErrno;
+
+	sigemptyset(&blockMask); /* Block SIGCHLD */
+	sigaddset(&blockMask, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &blockMask, &origMask);
+	saIgnore.sa_handler = SIG_IGN; /* Ignore SIGINT and SIGQUIT */
+	saIgnore.sa_flags = 0;
+	sigemptyset(&saIgnore.sa_mask);
+	sigaction(SIGINT, &saIgnore, &saOrigInt);
+	sigaction(SIGQUIT, &saIgnore, &saOrigQuit);
+
+	switch (childPid = fork()) {
+	case 1: /* fork() failed */
+		puts("failed");
+		status = -1;
+		break; /* Carry on to reset signal attributes */
+	case 0: /* Child: exec command */
+		saDefault.sa_handler = SIG_DFL;
+		saDefault.sa_flags = 0;
+		sigemptyset(&saDefault.sa_mask);
+
+		if (saOrigInt.sa_handler != SIG_IGN)
+			sigaction(SIGINT, &saDefault, NULL);
+
+		if (saOrigQuit.sa_handler != SIG_IGN)
+			sigaction(SIGQUIT, &saDefault, NULL);
+
+		sigprocmask(SIG_SETMASK, &origMask, NULL);
+
+		execve("/bin/sleep", (char*[]){"/bin/sleep", "10", NULL}, environ);
+		_exit(127); /* We could not exec the shell */
+	default: /* Parent: wait for our child to terminate */
+		while (waitpid(childPid, &status, 0) == -1) {
+			if (errno != EINTR) { /* Error other than EINTR */
+				status = 1;
+				puts("here");
+				break; /* So exit loop */
+			}
+		}
+		break;
+	}
+	/* Unblock SIGCHLD, restore dispositions of SIGINT and SIGQUIT */
+
+	savedErrno = errno; /* The following may change 'errno' */
+	sigprocmask(SIG_SETMASK, &origMask, NULL);
+	sigaction(SIGINT, &saOrigInt, NULL);
+	sigaction(SIGQUIT, &saOrigQuit, NULL);
+	errno = savedErrno;
+	return status;
+}
+

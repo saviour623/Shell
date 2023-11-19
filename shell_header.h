@@ -88,6 +88,7 @@ void errMsg(int errnum, struct shell_info *procinfo);
 /* utils */
 size_t _nputs(int fd, const char *str, int newline);
 ssize_t str_cpy(char *__restrict__ dest, const char *__restrict__ src, size_t len);
+int _nstrcmp(const char *__restrict__ c1, const char *__restrict__ c2, const char *delim);
 int _natoi(const char *s);
 
 void *glnrealloc(void *oldmem, size_t size);
@@ -95,6 +96,7 @@ int interactive_mode(shell_info *sh_info);
 int getNumtoks(const char *__restrict__, const char *__restrict__);
 char **getcmdString(char *__restrict__);
 int delimCharcmp(const char *__restrict__ delim, const char *__restrict__ cmp);
+void printPrompt(int ftty, char *strprmpt);
 ssize_t stdin_getline(char **lineptr, size_t *n);
 int stdin_getchar(void);
 
@@ -109,7 +111,7 @@ void cd_directory_func(struct shell_info *);
 void env_func(struct shell_info *);
 void set_environ_func(struct shell_info *);
 void unset_environ_func(struct shell_info *);
-
+__attribute__((nonnull)) char *_ngetenv(const char *_env);
 /* alias */
 void destroy_alias(cmd_alias *alias);
 #endif

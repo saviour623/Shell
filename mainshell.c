@@ -2,100 +2,129 @@
 
 static volatile char *sig_prompt;
 static volatile shell_info *track_info;
+static volatile sig_atomic_t sigterm;
+static volatile sig_atomic_t terminal;
+static jmp_buf bufenv __UNUSED__;
 
+#define USESIG_JMP
+#define SYSV_SIGNAL
+ 
 #define ROOT_CMP(B)										\
 	((B[0] == '/') && (B[1] == 'r') &&  (B[2] == 'o')\
 	 && (B[3] == 'o') &&  (B[4] == 't'))
 
-void sip(int sig __UNUSED__)
-{
-	return;
-}
+#define ___assertSigterm(flag, cl) /* TODO */
+
 void sig_interrupt(int sig __UNUSED__)
 {
-	/* another interrupt may occur when handling signal resulting to
-	 * two prompt, unfortunately sigaction() is not supported so... yep */
 	if (sig == SIGINT || sig == SIGQUIT)
 	{
-		fflush(stdout);
-		write(1, "\n", 2);
-		write(1, (char *)sig_prompt, strlen((char *)sig_prompt));
+#ifdef USESIG_JMP
+		write(STDOUT_FILENO, "\n", 1);
+		siglongjmp(bufenv, 1); /* sig-async unsafe */
+#else /* sigabrt would catch this */
+		if (terminal == true)
+		{
+			write(STDOUT_FILENO, "\n", 2);
+			write(STDOUT_FILENO, (char *)sig_prompt, strlen((char *)sig_prompt));
+		}
+#endif
 	}
 	if (sig == SIGTERM)
 	{
-		/* cleanup */
+		/* cleanup the shell and raise signal again */
 		exit_shell_func((shell_info *)track_info);
-	} 
+		raise(SIGTERM);
+	}
 }
 
-int main(int argc __UNUSED__, char **argv __UNUSED__)
-{
-	shell_info sh_info = {0};
-	sh_info.shell_name = argv[0];
+typedef struct sigaction sa_signal;
+volatile sa_signal gb_newSig;
 
-	if (argc == 2 && strcmp("--help", argv[1]))
-	{
-		eRR_routine(ERRMSG);
-	}
-
-	if ((argc == 1) || strcmp(argv[1], "-i"))
-	{
-		sh_info.argv = argv;
-		sh_info.argc = argc;
-		if (interactive_mode(&sh_info) == -1)
-			eRR_routine(ERRSTR);
-	}
-	return 0;
-}
-void set_signal(void (*sig_handler)(int), int nargs, int *args)
+void set_signal(void (*sig_handler)(int), int nargs __UNUSED__, int *args)
 {
+	int pp, saveErrno = errno;
+	sigset_t blockSig, tmpSet;
+	struct sigaction sa_sig;
+
+	((void)saveErrno, (void)blockSig, (void)tmpSet, (void)pp, (void)sa_sig); /* maybe unused */
+
 	if (args == NULL)
 		return;
-
-	if (nargs > SIG_ARGS_MAX)
+	if (nargs > NSIG)
 		return;
 
+#ifdef SYSV_SIGNAL
+	/* not portable */
 	while (nargs--)
+		signal(*args++, sig_handler); /* ignoring sig error here */
+#else	
+	sigemptyset(&blockSig); /* Block SIGCHLD */
+    sigaddset(&blockSig, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &blockSig, NULL);
+	
+	sigfillset(&sa_sig.sa_mask);
+	sigdelset(&sa_sig.sa_mask, SIGKILL);
+	sigdelset(&sa_sig.sa_mask, SIGSTOP);
+	sa_sig.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+	sa_sig.sa_handler = sig_handler;
+
+	sigfillset(&tmpSet);
+	for (; nargs && nargs < NSIG; nargs--)
 	{
-		signal(*args, sig_handler); /* ignoring sig error here */
-		args++;
+		pp = *args++;
+		if (sigismember(&tmpSet, pp) != 1 && (pp != SIGSTOP || pp != SIGKILL))
+			sigaction(pp, &sa_sig, NULL);
 	}
+#endif
+	errno = saveErrno;
 }
+__inline__ void printPrompt(int ftty, char *strprmpt)
+{
+	if (ftty != 1)
+		return;
+
+	if (strprmpt == NULL)
+	{
+		strprmpt = _ngetenv("HOME");
+
+		if (strprmpt == NULL)
+			return;
+		strprmpt = ROOT_CMP(strprmpt) ? "# " : "$ ";
+	}
+	sig_prompt = strprmpt;
+	_nputs(STDOUT_FILENO, strprmpt, 0);
+
+	fflush(stdout);
+}
+
 int interactive_mode(shell_info *sh_info)
 {
-	char *env_tmp = getenv("HOME"), *prompt;
-	char **tokens, *line_buffer = NULL;
-	size_t line = 0;
+	char *prmpt = (char *)0, *pathrc = (char *)0;
+	char **tokens, *line_buffer = (char *)0;
 	ssize_t char_read;
-	int is_interactive_tty;
-	char *pathrc;
-	int sig_list[] = {SIGINT, SIGQUIT, SIGTERM};
+	size_t rdSize = 0;
+	int is_tty, sig_list[] = {SIGINT, SIGQUIT, SIGTERM};
+
 	track_info = sh_info;
 	set_signal(sig_interrupt, sizeof sig_list / sizeof (int), sig_list);
-	
-	if (env_tmp == NULL)
-		eRR_routine(ERRNULL);
-	prompt = ROOT_CMP(env_tmp) ? "# " : "$ ";
-
-	do {
-		is_interactive_tty = isatty(STDIN_FILENO);
-		is_interactive_tty ? (void) printf("%s", prompt) : (void) 0;
-		sig_prompt = prompt;
-		fflush(stdout);
-
+	terminal = is_tty = isatty(STDIN_FILENO);
+#ifdef USESIG_JMP
+	sigsetjmp(bufenv, 1);
+#endif
+	do {		
+		printPrompt(is_tty, prmpt);
 		line_buffer = NULL;
-		line = 0;
-
-		char_read = stdin_getline(&line_buffer, &line);
+		char_read = stdin_getline(&line_buffer, &rdSize);
 
 		if (char_read == -1)
 		{
-			free(line_buffer);
-			putchar('\n');
-			//sh_info->cmd_opt = NULL;
-			exit_shell_func(sh_info);
+			if (line_buffer != NULL)
+				free(line_buffer);
+			_nputs(STDOUT_FILENO, "\n", 0);
+			exit(0);
 		}
-		line_buffer[char_read] = '\0';
+		line_buffer[char_read] = 0;
 		tokens = getcmdString(line_buffer);
 
 		if (tokens != NULL)
@@ -111,17 +140,13 @@ int interactive_mode(shell_info *sh_info)
 			}
 
 			pathrc != NULL ? sh_info->cmd = pathrc : 0;
-
-			/* check if it is a directory */
-			/* find builtin */
-			/* find alias */
 			execteArg(sh_info);
 			free(pathrc);
 		}
 	free:
 		free(line_buffer);
 		free(tokens);
-	} while (is_interactive_tty == true);
+	} while (is_tty == true);
 
 	return 0;
 }
@@ -129,7 +154,7 @@ int interactive_mode(shell_info *sh_info)
 void execteArg(shell_info *sh_info)
 {
 	pid_t pchild;
-	int status;
+	int waitstat, status;
 
 	fflush(stdout);
 	switch ((pchild = fork()))
@@ -143,8 +168,8 @@ void execteArg(shell_info *sh_info)
 			 : errno == ENOMEM ? 4 : 126);
 	default:
 		do {
-
-			if (waitpid(pchild, &status, WUNTRACED | WCONTINUED) == -1)
+			waitstat = waitpid(pchild, &status, WUNTRACED | WCONTINUED);
+			if (waitstat == -1 && waitstat != EINTR)
 			{
 				if (errno != ECHILD)
 					errMsg(12, sh_info);
@@ -213,5 +238,26 @@ int getNumtoks(const char *__restrict__ st, const char *__restrict__ delim)
 		}
 	}
 	return oo;
+}
+
+
+int main(int argc __UNUSED__, char **argv __UNUSED__)
+{
+	shell_info sh_info = {0};
+
+	sh_info.shell_name = argv[0];
+	if (argc == 2 && strcmp("--help", argv[1]))
+	{
+		eRR_routine(ERRMSG);
+	}
+
+	if ((argc == 1) || (_nstrcmp(argv[1], "-i", NULL) > 0))
+	{
+		sh_info.argv = argv;
+		sh_info.argc = argc;
+		if (interactive_mode(&sh_info) == -1)
+			eRR_routine(ERRSTR);
+	}
+	return 0;
 }
 
