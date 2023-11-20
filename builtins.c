@@ -5,8 +5,8 @@ void exit_shell_func(struct shell_info *sh_info __UNUSED__)
 	int exit_status = EXIT_SUCCESS;
 
 	destroy_alias(sh_info->alias);
-	(void)(sh_info->cmd_opt != NULL && sh_info->cmd_opt[1] != NULL ?
-		   (exit_status = _natoi(sh_info->cmd_opt[1])) : 0);
+//	(void)(sh_info->cmd_opt != NULL && sh_info->cmd_opt[1] != NULL ?
+//		   (exit_status = _natoi(sh_info->cmd_opt[1])) : 0);
 
 	if (exit_status == -SIZE_MAX)
 	{
@@ -14,8 +14,8 @@ void exit_shell_func(struct shell_info *sh_info __UNUSED__)
 		errMsg(ERR_SHLL_INVNUM, sh_info);
 		return;
 	}
-	free(sh_info->cmd);
-	free(sh_info->cmd_opt);
+//	free(sh_info->cmd);
+//	free(sh_info->cmd_opt);
 	exit(exit_status);
 }
 

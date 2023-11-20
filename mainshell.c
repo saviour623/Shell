@@ -6,7 +6,7 @@ static volatile sig_atomic_t sigterm;
 static volatile sig_atomic_t terminal;
 static jmp_buf bufenv __UNUSED__;
 
-#define USESIG_JMP
+//#define USESIG_JMP
 #define SYSV_SIGNAL
  
 #define ROOT_CMP(B)										\
@@ -119,10 +119,10 @@ int interactive_mode(shell_info *sh_info)
 
 		if (char_read == -1)
 		{
-			if (line_buffer != NULL)
+		    if (line_buffer != NULL)
 				free(line_buffer);
 			_nputs(STDOUT_FILENO, "\n", 0);
-			exit(0);
+			exit_shell_func(sh_info);
 		}
 		line_buffer[char_read] = 0;
 		tokens = getcmdString(line_buffer);
