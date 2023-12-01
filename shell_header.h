@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <termios.h>
 
 #ifdef __UNUSED__
 #undef __UNUSED__

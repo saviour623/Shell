@@ -3,7 +3,13 @@
 void exit_shell_func(struct shell_info *sh_info __UNUSED__)
 {
 	int exit_status = EXIT_SUCCESS;
+	sigset_t blockSig;
 
+	/* we don't need any signal interrupt here */
+	sigfillset(&blockSig);
+	sigdelset(&blockSig, SIGKILL);
+	sigdelset(&blockSig, SIGSTOP);
+	sigprocmask(SIG_BLOCK, &blockSig, NULL);
 	destroy_alias(sh_info->alias);
 //	(void)(sh_info->cmd_opt != NULL && sh_info->cmd_opt[1] != NULL ?
 //		   (exit_status = _natoi(sh_info->cmd_opt[1])) : 0);
@@ -12,6 +18,7 @@ void exit_shell_func(struct shell_info *sh_info __UNUSED__)
 	{
 		sh_info->err_info = true;
 		errMsg(ERR_SHLL_INVNUM, sh_info);
+		sigprocmask(SIG_UNBLOCK, &blockSig, NULL); /* unblock signal */
 		return;
 	}
 //	free(sh_info->cmd);
@@ -22,7 +29,7 @@ void exit_shell_func(struct shell_info *sh_info __UNUSED__)
 int _natoi(const char *s)
 {
 	register unsigned int n = 0, c = 0, sgn = 1;
-	
+
 	if ((s == NULL) || (*s == 0))
 		return (0);
 
@@ -40,7 +47,7 @@ int _natoi(const char *s)
 		n = ((n << 3) + (n << 1)) + (c - 48);
 	}
 	return (sgn * (int)n);
-	
+
 }
 void destroy_alias(cmd_alias *alias)
 {
@@ -71,6 +78,16 @@ void env_func(struct shell_info *info __UNUSED__)
 		write(STDOUT_FILENO, "\n", 1);
 	}
 }
+void cd_directory_func(struct shell_info *info __UNUSED__)
+{
+	struct stat statbuf;
+	int fd;
+
+//	fd = open();
+//	O_NONBLOCK O_NOCTTY
+	stat(info->cmd, &statbuf);
+	/* x - y */
+}
 char *get_env(char *restrict envpath __UNUSED__)
 {
 	return NULL;
@@ -79,6 +96,3 @@ void set_environ_func(struct shell_info *info __UNUSED__)
 {}
 void unset_environ_func(struct shell_info *info __UNUSED__)
 {}
-void cd_directory_func(struct shell_info *info __UNUSED__)
-{
-}
