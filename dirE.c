@@ -18,9 +18,56 @@ struct statb {
 #include <dirent.h>
 #define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
 #define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
+typedef struct pathsc {
+	char *pth_parenpath;
+	char *sc_abspath;
+} pathsc;
 
 int faccesswx(int fd)
 {
+}
+char *path_ncpy(char *dest, const char *src)
+{
+	register int c;
+
+	if (src == NULL)
+	{
+		errno = EINVAL;
+		return NULL;
+	}
+	if (dest == NULL && *src != 0)
+	{
+		dest = malloc(strlen(src) * sizeof (char));
+		if (dest == NULL)
+		{
+			errno == ENOMEM;
+			return NULL;
+		}
+	}
+	for (; len && (c = *src); len--, *src++)
+	{
+		if ((c == '/') && (*(src + 1) == '/'))
+			continue;
+		*dest = *src;
+	}
+	return dest;
+}
+__attribute__((nonnull)) static char *cpy_ppath(char *path)
+{
+	static char paren_path[PATH_MAX];
+	register int oo = 0, c = 0;
+	register size_t len = strlen(path), tmlen = len - 1;
+
+	if (len > PATH_MAX || *path == 0)
+		return NULL;
+
+	for (; (c = path[tmlen--]) && c != '/'; oo++)
+		;;
+	len -= oo;
+
+	if 
+	strncpy(paren_path, path, len);
+	return paren_path;
 }
 void mv_directory_func(char *a, char *b)
 {
@@ -29,11 +76,14 @@ void mv_directory_func(char *a, char *b)
 	//char fName = info->cmd;
 	int fd;
 	mode_t file_mode, s_perm;
+	char n_path[PATH_MAX];
 
+	seteuid(0);
+	setegid(0);
 	uid_t euid_proc = geteuid();
 	gid_t egid_proc = getegid();
 
-	fd = open("./empty_test/file1", O_PATH);
+	fd = open("../empty_test/", O_PATH);
 	if (fd == -1)
 	{
 		perror("open");
@@ -48,7 +98,7 @@ void mv_directory_func(char *a, char *b)
 #if defined(__linux__) && defined(_SYS_FSUID_H)
     s_perm = (setfsuid(-1) == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
 		: setfsgid(-1) == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : 0;
-	if (!(s_perm))
+	if (s_perm)
 		goto fs_mdfy;
 #endif
 	if (euid_proc != 0)
@@ -68,6 +118,8 @@ fs_mdfy:
 		/* if sticky bit is set on the dir and the dir doesnt belong to the process, then we dont have access */
 		if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc)))
 		{
+			puts("no access");
+			exit(-1);
 			/* no access */
 		}
 	}
@@ -85,6 +137,11 @@ int main(void)
 	struct stat statbuf;
 	//stat("./new", &statbuf);
 	//perror("stat");
+	char path[PATH_MAX];
+	char *p = cpy_ppath("/h/p/k/p/g/my_path");
+	if (p != NULL)
+		puts(p);
+//	printf("%s\n", realpath("/h/b/t/y", path));
 	mv_directory_func("./new", "./new2");
 	return (0);
 }
