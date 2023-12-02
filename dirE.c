@@ -11,7 +11,17 @@ struct statb {
                blksize_t st_blksize;     /* Block size for filesystem I/O */
                blkcnt_t  st_blocks;      /* Number of 512B blocks allocated */
 };
+
+#ifdef __linux__
+#include <sys/fsuid.h>
+#endif
+#include <dirent.h>
 #define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
+#define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
+
+int faccesswx(int fd)
+{
+}
 void mv_directory_func(char *a, char *b)
 {
 	/* also change timestamp with utimes */
@@ -21,31 +31,42 @@ void mv_directory_func(char *a, char *b)
 	mode_t file_mode, s_perm;
 
 	uid_t euid_proc = geteuid();
-	gid_t gid_proc = getegid();
+	gid_t egid_proc = getegid();
 
-	fd = open("./bugs", O_PATH);
+	fd = open("./empty_test/file1", O_PATH);
+	if (fd == -1)
+	{
+		perror("open");
+		exit(-1);
+	}
 	if (fstat(fd, &statbuf) == -1)
 	{
 		perror("stat");
+		exit(-1);
 	}
 	file_mode = statbuf.st_mode;
-#ifdef __LINUX__
-	/* compare against file_uid/gid instead of effective */
+#if defined(__linux__) && defined(_SYS_FSUID_H)
+    s_perm = (setfsuid(-1) == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
+		: setfsgid(-1) == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : 0;
+	if (!(s_perm))
+		goto fs_mdfy;
 #endif
-	if (eid_proc != 0)
+	if (euid_proc != 0)
 		s_perm = (euid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
-			: gid_proc == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : (S_IWOTH | S_IXOTH) & file_mode;
-	else s_perm = 1;
+			: egid_proc == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : (S_IWOTH | S_IXOTH) & file_mode;
+	else
+		s_perm = 1;
 
 	if (s_perm == 0)
 	{
 		puts("permission denied");
 		exit(-1);
 	}
+fs_mdfy:
 	if (S_ISDIR(statbuf.st_mode))
 	{
 		/* if sticky bit is set on the dir and the dir doesnt belong to the process, then we dont have access */
-		if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf)))
+		if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc)))
 		{
 			/* no access */
 		}
