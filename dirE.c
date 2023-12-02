@@ -26,9 +26,9 @@ typedef struct pathsc {
 int faccesswx(int fd)
 {
 }
-char *path_ncpy(char *dest, const char *src)
+char *path_ncpy(char *dest, const char *src, size_t len)
 {
-	register int c;
+	register int c, oo = 0;
 
 	if (src == NULL)
 	{
@@ -37,7 +37,7 @@ char *path_ncpy(char *dest, const char *src)
 	}
 	if (dest == NULL && *src != 0)
 	{
-		dest = malloc(strlen(src) * sizeof (char));
+		dest = malloc(len * sizeof (char));
 		if (dest == NULL)
 		{
 			errno == ENOMEM;
@@ -48,7 +48,7 @@ char *path_ncpy(char *dest, const char *src)
 	{
 		if ((c == '/') && (*(src + 1) == '/'))
 			continue;
-		*dest = *src;
+		dest[oo++] = *src;
 	}
 	return dest;
 }
@@ -62,12 +62,15 @@ __attribute__((nonnull)) static char *cpy_ppath(char *path)
 		return NULL;
 
 	for (; (c = path[tmlen--]) && c != '/'; oo++)
-		;;
+		;
 	len -= oo;
-
-	if 
-	strncpy(paren_path, path, len);
-	return paren_path;
+	if (path[len] != '/')
+	{
+		paren_path[0] = '.';
+		paren_path[1] = '/';
+		return path_ncpy;
+	}
+	return path_ncpy(paren_path, path, len);
 }
 void mv_directory_func(char *a, char *b)
 {
@@ -141,6 +144,7 @@ int main(void)
 	char *p = cpy_ppath("/h/p/k/p/g/my_path");
 	if (p != NULL)
 		puts(p);
+	puts(path_ncpy(NULL, "/hello/hi/////kl//p/power", 26));
 //	printf("%s\n", realpath("/h/b/t/y", path));
 	mv_directory_func("./new", "./new2");
 	return (0);
