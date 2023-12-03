@@ -23,9 +23,9 @@ typedef struct pathsc {
 	char *sc_abspath;
 } pathsc;
 
-int faccesswx(int fd)
-{
-}
+#define TST_LOGFUN(tst, err, act)\
+	do { if ((tst) == (err)){ act; exit(EXIT_FAILURE); } } while(0)
+
 char *path_ncpy(char *dest, const char *src, size_t len)
 {
 	register int c, oo = 0;
@@ -40,7 +40,7 @@ char *path_ncpy(char *dest, const char *src, size_t len)
 		dest = malloc(len * sizeof (char));
 		if (dest == NULL)
 		{
-			errno == ENOMEM;
+			errno = ENOMEM;
 			return NULL;
 		}
 	}
@@ -52,79 +52,89 @@ char *path_ncpy(char *dest, const char *src, size_t len)
 	}
 	return dest;
 }
-__attribute__((nonnull)) static char *cpy_ppath(char *path)
+__attribute__((nonnull)) static char *get_ppath(char *path)
 {
 	static char paren_path[PATH_MAX];
-	register int oo = 0, c = 0;
-	register size_t len = strlen(path), tmlen = len - 1;
+	register int oo = 0, n_bkslash = 0;
+	register size_t len = strlen(path), tmlen = len;
 
-	if (len > PATH_MAX || *path == 0)
+	if (len > PATH_MAX || len == 0 || *path == 0)
 		return NULL;
 
-	for (; (c = path[tmlen--]) && c != '/'; oo++)
+	for (; (tmlen > 0) && (n_bkslash = (path[tmlen - 1] != '/')); tmlen--, oo++)
 		;
-	len -= oo;
-	if (path[len] != '/')
-	{
-		paren_path[0] = '.';
-		paren_path[1] = '/';
-		return path_ncpy;
-	}
-	return path_ncpy(paren_path, path, len);
+	if (n_bkslash)
+		return ((paren_path[0] = '.'), (paren_path[1] = '/'), (paren_path[2] = 0), paren_path);
+	return path_ncpy(paren_path, path, len - oo);
 }
-void mv_directory_func(char *a, char *b)
+int faccesswx(int fd, char *fileName)
 {
-	/* also change timestamp with utimes */
 	struct stat statbuf;
-	//char fName = info->cmd;
-	int fd;
-	mode_t file_mode, s_perm;
-	char n_path[PATH_MAX];
+	mode_t file_mode, s_perm = 0;
+	register uid_t euid_proc = geteuid(), fuid_proc __UNUSED__;
+	register gid_t egid_proc = getegid(), fgid_proc __UNUSED__;
 
-	seteuid(0);
-	setegid(0);
-	uid_t euid_proc = geteuid();
-	gid_t egid_proc = getegid();
+	TST_LOGFUN(fstat(fd, &statbuf), -1, perror("fstat"));
 
-	fd = open("../empty_test/", O_PATH);
-	if (fd == -1)
-	{
-		perror("open");
-		exit(-1);
-	}
-	if (fstat(fd, &statbuf) == -1)
-	{
-		perror("stat");
-		exit(-1);
-	}
+	/* for a regular file, we are more interested in the ownership of its parent dir */
+	if (S_ISREG(statbuf.st_mode))
+		TST_LOGFUN(stat(get_ppath(fileName), &statbuf), -1, perror("stat"));
+
 	file_mode = statbuf.st_mode;
 #if defined(__linux__) && defined(_SYS_FSUID_H)
-    s_perm = (setfsuid(-1) == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
-		: setfsgid(-1) == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : 0;
+	fuid_proc = setfsuid(-1);
+	fgid_proc = setfsgid(-1);
+    s_perm = (fuid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
+		: fgid_proc == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : 0;
 	if (s_perm)
-		goto fs_mdfy;
+		return s_perm;
 #endif
 	if (euid_proc != 0)
 		s_perm = (euid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
 			: egid_proc == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : (S_IWOTH | S_IXOTH) & file_mode;
 	else
-		s_perm = 1;
+	{
+		/* if the process is priviledged, a directory must have an execute permission in any of the field before it is granted access */
+		if (S_ISDIR(statbuf.st_mode) && !(file_mode & S_IXUSR || file_mode & S_IXGRP || file_mode & S_IXOTH))
+			s_perm = 0;
+		else s_perm = 1;
+	}
+	return s_perm;
+}
 
-	if (s_perm == 0)
+void mv_directory_func(char *a, char *b)
+{
+	int fd;
+	int file_mode;
+	char n_path[PATH_MAX];
+	int permis;
+	struct stat statbuf;
+
+	if (a == NULL || *a == 0)
+	{
+		puts("error empty path");
+		exit(EXIT_FAILURE);
+	}
+	fd = open(a, O_PATH);
+	TST_LOGFUN(fd, -1, perror("open"));
+	TST_LOGFUN(fstat(fd, &statbuf), -1, perror("stat"));
+
+	permis = faccesswx(fd, a);
+/*	if (s_perm == 0)
 	{
 		puts("permission denied");
 		exit(-1);
-	}
+		} */
 fs_mdfy:
 	if (S_ISDIR(statbuf.st_mode))
 	{
 		/* if sticky bit is set on the dir and the dir doesnt belong to the process, then we dont have access */
-		if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc)))
-		{
-			puts("no access");
-			exit(-1);
+		//if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc)))
+		//	{
+		//	puts("no access");
+		//	exit(-1);
 			/* no access */
-		}
+		//}
 	}
 /*	if (S_ISREG); */
 	/* x - y */
@@ -140,14 +150,14 @@ int main(void)
 	struct stat statbuf;
 	//stat("./new", &statbuf);
 	//perror("stat");
-	char path[PATH_MAX];
-	char *p = cpy_ppath("/h/p/k/p/g/my_path");
-	if (p != NULL)
-		puts(p);
-	puts(path_ncpy(NULL, "/hello/hi/////kl//p/power", 26));
+//	char path[PATH_MAX];
+//	char *p = cpy_ppath("hop");
+//	if (p != NULL)
+//		puts(p);
+//	puts(path_ncpy(NULL, "/hello/hi/////kl//p/power", 26));
 //	printf("%s\n", realpath("/h/b/t/y", path));
-	mv_directory_func("./new", "./new2");
+	mv_directory_func("new", "./new2");
 	return (0);
 }
-
+	/* also change timestamp with utimes in mv*/
 /* add umask builtin */
