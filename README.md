@@ -1,1 +1,1 @@
-A basic shell written entirely in C
+A naive C-shell
