@@ -16,6 +16,7 @@ struct statb {
 #include <sys/fsuid.h>
 #endif
 #include <dirent.h>
+#include <sys/vfs.h>
 #define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
 #define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
 typedef struct pathsc {
@@ -67,6 +68,21 @@ __attribute__((nonnull)) static char *get_ppath(char *path)
 		return ((paren_path[0] = '.'), (paren_path[1] = '/'), (paren_path[2] = 0), paren_path);
 	return path_ncpy(paren_path, path, len - oo);
 }
+gid_t sgrplist(gid_t _sgid)
+{
+	gid_t grp[NGROUPS_MAX + 1];
+	register int oo, ngrps = getgroups(NGROUPS_MAX + 1, grp), atgrp = 0;
+
+	if (ngrps == -1)
+		return (_sgid);
+	for (oo = 0; oo < ngrps; oo++)
+	{
+		atgrp = grp[oo];
+		if (_sgid == atgrp)
+			return (atgrp);
+	}
+	return (_sgid);
+}
 int faccesswx(int fd, char *fileName)
 {
 	struct stat statbuf;
@@ -79,19 +95,26 @@ int faccesswx(int fd, char *fileName)
 	/* for a regular file, we are more interested in the ownership of its parent dir */
 	if (S_ISREG(statbuf.st_mode))
 		TST_LOGFUN(stat(get_ppath(fileName), &statbuf), -1, perror("stat"));
-
 	file_mode = statbuf.st_mode;
+
+	if (S_ISDIR(statbuf.st_mode))
+	{
+		/* if sticky bit is set on the dir and the dir doesnt belong to the process, then we dont have access */
+		if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc))) /* TODO: compare against fsuid */
+			return (s_perm & 0);
+	}
 #if defined(__linux__) && defined(_SYS_FSUID_H)
 	fuid_proc = setfsuid(-1);
 	fgid_proc = setfsgid(-1);
     s_perm = (fuid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
-		: fgid_proc == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : 0;
+		: fgid_proc == statbuf.st_gid || (sgrplist(statbuf.st_gid) != fgid_proc) ? (S_IWGRP | S_IXGRP) & file_mode : 0;
 	if (s_perm)
 		return s_perm;
 #endif
 	if (euid_proc != 0)
 		s_perm = (euid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
-			: egid_proc == statbuf.st_gid ? (S_IWGRP | S_IXGRP) & file_mode : (S_IWOTH | S_IXOTH) & file_mode;
+			: egid_proc == statbuf.st_gid || (sgrplist(statbuf.st_gid) != egid_proc)
+			? (S_IWGRP | S_IXGRP) & file_mode : (S_IWOTH | S_IXOTH) & file_mode;
 	else
 	{
 		/* if the process is priviledged, a directory must have an execute permission in any of the field before it is granted access */
@@ -107,40 +130,44 @@ void mv_directory_func(char *a, char *b)
 	int fd;
 	int file_mode;
 	char n_path[PATH_MAX];
-	int permis;
+	int permis[2];
+	__fsword_t tpfl[2];
 	struct stat statbuf;
+	struct statfs fsbuf;
+	char *ptrfl;
 
-	if (a == NULL || *a == 0)
+	ptrfl = a;
+	for (int oo = 0; oo < 2; oo++)
 	{
-		puts("error empty path");
-		exit(EXIT_FAILURE);
-	}
-	fd = open(a, O_PATH);
-	TST_LOGFUN(fd, -1, perror("open"));
-	TST_LOGFUN(fstat(fd, &statbuf), -1, perror("stat"));
+		if (a == NULL || *a == 0)
+		{
+			puts("error empty path");
+			exit(EXIT_FAILURE);
+		}
+		fd = open(ptrfl, O_PATH);
+		TST_LOGFUN(fd, -1, perror("open"));
+		TST_LOGFUN(fstat(fd, &statbuf), -1, perror("stat"));
 
-	permis = faccesswx(fd, a);
-/*	if (s_perm == 0)
-	{
-		puts("permission denied");
-		exit(-1);
-		} */
-fs_mdfy:
-	if (S_ISDIR(statbuf.st_mode))
-	{
-		/* if sticky bit is set on the dir and the dir doesnt belong to the process, then we dont have access */
-		//if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc)))
-		//	{
-		//	puts("no access");
-		//	exit(-1);
-			/* no access */
-		//}
+		permis[oo] = faccesswx(fd, a);
+		if (permis[oo] == 0)
+		{
+			puts("permission denied");
+			exit(-1);
+		}
+
+		TST_LOGFUN(statfs(a, &fsbuf), -1, perror("statfs"));
+		tpfl[oo] = fsbuf.f_type;
+
+		if (close(fd) == -1)
+		{
+			perror("close");
+			exit(-1);
+		}
+		ptrfl = b;
 	}
-/*	if (S_ISREG); */
-	/* x - y */
-	if (close(fd) == -1)
+	if (tpfl[0] != tpfl[1])
 	{
-		perror("close");
+		puts("no the same file system");
 		exit(-1);
 	}
 }
@@ -156,7 +183,7 @@ int main(void)
 //		puts(p);
 //	puts(path_ncpy(NULL, "/hello/hi/////kl//p/power", 26));
 //	printf("%s\n", realpath("/h/b/t/y", path));
-	mv_directory_func("new", "./new2");
+	mv_directory_func("./empty_test/new", "./empty_test/new2");
 	return (0);
 }
 	/* also change timestamp with utimes in mv*/
