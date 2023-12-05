@@ -17,8 +17,11 @@ struct statb {
 #endif
 #include <dirent.h>
 #include <sys/vfs.h>
+#include <stdarg.h>
+
 #define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
 #define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
+#define MVFILE_MAX 256
 typedef struct pathsc {
 	char *pth_parenpath;
 	char *sc_abspath;
@@ -93,7 +96,7 @@ int faccesswx(int fd, char *fileName)
 
 	TST_LOGFUN(fstat(fd, &statbuf), -1, perror("fstat"));
 
-	/* for a regular file, we are more interested in the ownership of its parent dir */
+	/* for a regular file, it's modification loosely depends on the ownership of its parent dir */
 	if (S_ISREG(statbuf.st_mode))
 		TST_LOGFUN(stat(get_ppath(fileName), &statbuf), -1, perror("stat"));
 	file_mode = statbuf.st_mode;
@@ -109,6 +112,7 @@ int faccesswx(int fd, char *fileName)
 	if (flag_id != 0)
 		goto fsperm;
 #endif
+	/* file must be owned by a user or group(s) */
 	if (euid_proc == 0 || euid_proc == statbuf.st_uid)
 		flag_id = 1;
 	else if (egid_proc == statbuf.st_uid || sgrplist(statbuf.st_gid) == statbuf.st_gid)
@@ -123,6 +127,7 @@ fsperm:
 			return (s_perm & 0);
 	}
 
+	/* we are only interested in the execute and write permission */
 	if (euid_proc != 0)
 		s_perm = flag_id == 1 ? (S_IWUSR | S_IXUSR) & file_mode
 			: flag_id == 2 || (sgrplist(statbuf.st_gid) != egid_proc)
@@ -133,23 +138,53 @@ fsperm:
 	return s_perm;
 }
 
-void mv_directory_func(char *a, char *b)
+void mv_directory_func(int fln, ...)
 {
-	int fd;
-	int file_mode;
-	char n_path[PATH_MAX];
-	int permis[2];
+	va_list flelist;
+	int fd, file_mode, permis[2];;
+	char *flepath[MVFILE_MAX], *ptrfl;;
 	__fsword_t tpfl[2];
+
+	char *a = NULL, *b = NULL;
 	struct stat statbuf;
 	struct statfs fsbuf;
-	char *ptrfl;
+	register int oo;
 
+	va_start(flelist, fln);
+
+	switch (fln)
+	{
+	case 0:
+		puts("mv: mv requires two or more file operand");
+		exit(-1);
+	case 1:
+		(ptrfl = va_arg(flelist, char *)) != NULL ? (printf("mv: missing destination file operand after "), puts(ptrfl))
+			: puts("mv: empty operand");
+		exit(-1);
+	default:
+		if (fln > MVFILE_MAX)
+		{
+			puts("mv: arguments exceeds MVFILE_MAX");
+			exit(-1);
+		}
+	}
+	oo = 0;
+	while (oo < fln)
+	{
+		ptrfl = va_arg(flelist, char *);
+		if (ptrfl == NULL || *ptrfl == 0)
+		{
+			printf("mv: argument %d is null or empty\n", oo + 1);
+			exit(-1);
+		}
+		oo++;
+	}
 	ptrfl = a;
 	for (int oo = 0; oo < 2; oo++)
 	{
 		if (a == NULL || *a == 0)
 		{
-			puts("error empty path");
+			puts("mv: error empty path");
 			exit(EXIT_FAILURE);
 		}
 		fd = open(ptrfl, O_PATH);
@@ -193,7 +228,7 @@ int main(void)
 //		puts(p);
 //	puts(path_ncpy(NULL, "/hello/hi/////kl//p/power", 26));
 //	printf("%s\n", realpath("/h/b/t/y", path));
-	mv_directory_func("./empty_test/new", "./empty_test/new2");
+	mv_directory_func(2, NULL, "./empty_test/new2");
 	return (0);
 }
 	/* also change timestamp with utimes in mv*/
