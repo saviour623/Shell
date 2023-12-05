@@ -17,7 +17,6 @@ struct statb {
 #endif
 #include <dirent.h>
 #include <sys/vfs.h>
-#include <stdarg.h>
 #define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
 #define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
 typedef struct pathsc {
@@ -94,7 +93,7 @@ int faccesswx(int fd, char *fileName)
 
 	TST_LOGFUN(fstat(fd, &statbuf), -1, perror("fstat"));
 
-	/* for a regular file, it's modification loosely depends on the ownership of its parent dir */
+	/* for a regular file, we are more interested in the ownership of its parent dir */
 	if (S_ISREG(statbuf.st_mode))
 		TST_LOGFUN(stat(get_ppath(fileName), &statbuf), -1, perror("stat"));
 	file_mode = statbuf.st_mode;
@@ -110,7 +109,6 @@ int faccesswx(int fd, char *fileName)
 	if (flag_id != 0)
 		goto fsperm;
 #endif
-	/* file must be owned by a user or group(s) */
 	if (euid_proc == 0 || euid_proc == statbuf.st_uid)
 		flag_id = 1;
 	else if (egid_proc == statbuf.st_uid || sgrplist(statbuf.st_gid) == statbuf.st_gid)
@@ -125,7 +123,6 @@ fsperm:
 			return (s_perm & 0);
 	}
 
-	/* we are only interested in the execute and write permission */
 	if (euid_proc != 0)
 		s_perm = flag_id == 1 ? (S_IWUSR | S_IXUSR) & file_mode
 			: flag_id == 2 || (sgrplist(statbuf.st_gid) != egid_proc)
@@ -136,15 +133,16 @@ fsperm:
 	return s_perm;
 }
 
-void mv_directory_func(int fln, ...)
+void mv_directory_func(char *a, char *b)
 {
-	va_list flelist;
-	int fd, file_mode, int permis[2];;
-	char n_path[PATH_MAX], *ptrfl;;
+	int fd;
+	int file_mode;
+	char n_path[PATH_MAX];
+	int permis[2];
 	__fsword_t tpfl[2];
-
 	struct stat statbuf;
 	struct statfs fsbuf;
+	char *ptrfl;
 
 	ptrfl = a;
 	for (int oo = 0; oo < 2; oo++)
