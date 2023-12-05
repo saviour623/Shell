@@ -89,6 +89,7 @@ int faccesswx(int fd, char *fileName)
 	mode_t file_mode, s_perm = 0;
 	register uid_t euid_proc = geteuid(), fuid_proc __UNUSED__;
 	register gid_t egid_proc = getegid(), fgid_proc __UNUSED__;
+	register int flag_id;
 
 	TST_LOGFUN(fstat(fd, &statbuf), -1, perror("fstat"));
 
@@ -97,31 +98,38 @@ int faccesswx(int fd, char *fileName)
 		TST_LOGFUN(stat(get_ppath(fileName), &statbuf), -1, perror("stat"));
 	file_mode = statbuf.st_mode;
 
+#if defined(__linux__) && defined(_SYS_FSUID_H)
+	fuid_proc = setfsuid(-1);
+	fgid_proc = setfsgid(-1);
+
+	if (fuid_proc == 0 || fuid_proc == statbuf.st_uid)
+		flag_id = 1;
+	else if (fgid_proc == statbuf.st_gid || sgrplist(statbuf.st_gid) == statbuf.st_gid)
+		flag_id = 2;
+	if (flag_id != 0)
+		goto fsperm;
+#endif
+	if (euid_proc == 0 || euid_proc == statbuf.st_uid)
+		flag_id = 1;
+	else if (egid_proc == statbuf.st_uid || sgrplist(statbuf.st_gid) == statbuf.st_gid)
+		flag_id = 2;
+	else
+		return (s_perm & 0);
+fsperm:
 	if (S_ISDIR(statbuf.st_mode))
 	{
 		/* if sticky bit is set on the dir and the dir doesnt belong to the process, then we dont have access */
 		if ((file_mode & S_ISVTX) && !(PROC_OWNED(statbuf, euid_proc))) /* TODO: compare against fsuid */
 			return (s_perm & 0);
 	}
-#if defined(__linux__) && defined(_SYS_FSUID_H)
-	fuid_proc = setfsuid(-1);
-	fgid_proc = setfsgid(-1);
-    s_perm = (fuid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
-		: fgid_proc == statbuf.st_gid || (sgrplist(statbuf.st_gid) != fgid_proc) ? (S_IWGRP | S_IXGRP) & file_mode : 0;
-	if (s_perm)
-		return s_perm;
-#endif
+
 	if (euid_proc != 0)
-		s_perm = (euid_proc == statbuf.st_uid) ? (S_IWUSR | S_IXUSR) & file_mode
-			: egid_proc == statbuf.st_gid || (sgrplist(statbuf.st_gid) != egid_proc)
+		s_perm = flag_id == 1 ? (S_IWUSR | S_IXUSR) & file_mode
+			: flag_id == 2 || (sgrplist(statbuf.st_gid) != egid_proc)
 			? (S_IWGRP | S_IXGRP) & file_mode : (S_IWOTH | S_IXOTH) & file_mode;
+
 	else
-	{
-		/* if the process is priviledged, a directory must have an execute permission in any of the field before it is granted access */
-		if (S_ISDIR(statbuf.st_mode) && !(file_mode & S_IXUSR || file_mode & S_IXGRP || file_mode & S_IXOTH))
-			s_perm = 0;
-		else s_perm = 1;
-	}
+		s_perm = 1;
 	return s_perm;
 }
 
