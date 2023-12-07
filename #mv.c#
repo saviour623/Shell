@@ -161,9 +161,8 @@ _mv_dest_info *destHandlingfunc(char *fl_dest, int numFls)
 				fd = open(_mv_destination_fl, O_CREAT | O_DIRECTORY,
 						  /* TODO: use the default process permission */ S_IWUSR | S_IRUSR | S_IXUSR | S_IWGRP | S_IWGRP | S_IROTH);
 				if (fd == -1)
-				{
 					return (_mv_dest_info *)0;
-				}
+				
 			}
 			else
 				fd = open(_mv_destination_fl, O_CREAT,
