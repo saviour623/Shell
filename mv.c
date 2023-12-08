@@ -21,6 +21,9 @@ struct statb {
 
 #define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
 #define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
+#define BPERM_DIR S_IWUSR | S_IRUSR | S_IXUSR | S_IXGRP | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH
+#define BPERM_FLE S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH
+
 #define MVFILE_MAX 256
 typedef struct pathsc {
 	char *pth_parenpath;
@@ -30,7 +33,9 @@ typedef struct pathsc {
 typedef struct _mv_dest_info {
 	char *ds_name;
 	int ds_fd;
-	__fsword_t ds_type;
+#ifdef _SYS_FS_H
+	struct statfs *ds_fs;
+#endif
 } _mv_dest_info;
 
 int _cptfs_flag;
@@ -144,49 +149,95 @@ fsperm:
 		s_perm = 1;
 	return s_perm;
 }
-
-_mv_dest_info *destHandlingfunc(char *fl_dest, int numFls)
+char *_get_current_dir_name(void)
 {
-	/* set the destination file */
-		struct stat _nfo_dest_fl;
-		struct statfs _nfo_fsdest_fl;
-		static _mv_dest_info;
+}
+int _mvMultiFiles(int numOfiles, char **flelist)
+{
+}
+/* if */
+int _mvTwoFiles(char *__restrict__ flesrc, char *__restrict__ fledest)
+{
+	struct stat statSrc, statDest;
+	struct statfs fsSrc, fsDest;
+	register int fd, creatFlag = 0;
+	char *currentDirectory = NULL;
 
-		int fd;
-		/* if destination file/one of it's path does not exist create a directory with that path */
-		if (stat(_mv_destination_fl, &_nfo_dest_fl) == -1 && errno == ENOENT)
+	if (flesrc == NULL || *flesrc == 0 || fledest == NULL || *fledest == 0)
+	{
+		/* handle error */
+		exit(-1);
+	}
+	if (stat(flesrc, &statSrc) == -1)
+	{
+		/* handle error */
+		exit(-1);
+	}
+	/* if the destination does not exist, it's likely we create one. A direct call to rename() should create a corresponding file, however, we can't be certain if it exist on the same file system so as to copy rather name renaming */
+	if (stat(fledest, &statDest) == -1 && (errno == ENOENT))
+	{
+		if (S_ISDIR(statSrc.st_mode))
 		{
-			if (numfls > 2)
+			fd = open(fledest, O_CREAT | O_DIRECTORY | O_EXCL | O_RDWR, BPERM_DIR);
+			if (fd == -1 && errno != EEXIST)
 			{
-				fd = open(_mv_destination_fl, O_CREAT | O_DIRECTORY,
-						  /* TODO: use the default process permission */ S_IWUSR | S_IRUSR | S_IXUSR | S_IWGRP | S_IWGRP | S_IROTH);
-				if (fd == -1)
+				/* handle error */
+				exit(-1);
+			}
+		}
+		else if (S_ISREG(statSrc.st_mode))
+		{
+			fd = open(fledest, O_CREAT | O_EXCL | O_RDWR, BPERM_FLE);
+			if (fd == -1 && errno != EEXIST)
+			{
+				/* handle error */
+				exit(-1);
+			}
+		}
+		creatFlag = 1; /* created a dest file */
+	}
+	else
+	{
+		/* handle error */
+		exit(-1);
+	}
+	/* if the source file is a directory and the destination is otherwise, mv cannot be possible */
+	if (S_ISDIR(statSrc.st_mode) && !(S_ISDIR(statDest.st_mode)))
+	{
+		/* handle error */
+		exit(-1);
+	}
+	if (statfs(flesrc, &fsSrc) != -1 && statfs(fledest, &fsDest) != -1)
+	{
+		/* same fle system */
+		if (fsSrc.f_type == fsDest.f_type)
+		{
+			if (creatFlag || !(statDest.st_size))
+			{
+				if (rename(flesrc, fle) == -1)
 				{
-					return (_mv_dest_info *)0;
+					/* handle error */
+					exit(errno);
 				}
 			}
 			else
-				fd = open(_mv_destination_fl, O_CREAT,
-						  /* TODO: use the default process permission */ S_IWUSR | S_IRUSR | S_IXUSR | S_IWGRP | S_IWGRP | S_IROTH);
+			{
+#ifdef _GNU_SOURCE
+				currentDirectory = get_curren_dir_name();
+#else
+				currentDirectory = _get_current_dir_name();
+			}
 		}
-		else {
-			return (char *)1;
-		}
-
-		if ( !S_ISDIR(_nfo_dest_fl.st_mode) && (numFls > 2) )
-			return (char *)2;
-
-		TST_LOGFUN(statfs(_mv_destination_fl, &_nfo_fsdest_fl), -1, perror("statfs"));
-		tpfl[fln - 1] = _nfo_fsdest_fl.f_type;
-
-		return fl_dest;
+	}
+	else /* copy */
+	{
 	}
 }
 void mv_directory_func(int fln, ...)
 {
 	va_list flelist;
 	int fd, file_mode, permis[2];
-	char *_mv_totfile[MVFILE_MAX], *ptrfl;;
+	char *_mv_nputfile[MVFILE_MAX], *ptrfl;;
 	__fsword_t tpfl[MVFILE_MAX];
 	char *_mv_destination_fl;
 
@@ -223,48 +274,15 @@ void mv_directory_func(int fln, ...)
 			printf("mv: argument %d is null or empty\n", oo + 1);
 			exit(-1);
 		}
-		_mv_totfile[oo] = ptrfl;
+		_mv_nputfile[oo] = ptrfl;
 		oo++;
 	}
-	_mv_destination_fl = _mv_totfile[fln - 1];
-	destHandlingFunc(_mv_destination_fl, fln);
+	_mv_destination_fl = _mv_nputfile[fln - 1];
 
-	ptrfl = a;
-	for (int oo = 0; oo < 2; oo++)
-	{
-		if (a == NULL || *a == 0)
-		{
-			puts("mv: error empty path");
-			exit(EXIT_FAILURE);
-		}
-		fd = open(ptrfl, O_PATH);
-		TST_LOGFUN(fd, -1, perror("open"));
-		TST_LOGFUN(fstat(fd, &statbuf), -1, perror("stat"));
-
-		permis[oo] = faccesswx(fd, a);
-		if (permis[oo] == 0)
-		{
-			puts("permission denied");
-			exit(-1);
-		}
-
-		TST_LOGFUN(statfs(a, &fsbuf), -1, perror("statfs"));
-		tpfl[oo] = fsbuf.f_type;
-
-		if (close(fd) == -1)
-		{
-			perror("close");
-			exit(-1);
-		}
-		ptrfl = b;
-	}
-	if (tpfl[0] != tpfl[1])
-	{
-		/* actual copy file/directory but for now lets just signify */
-		puts("no the same file system");
-		exit(-1);
-	}
-	TST_LOGFUN(rename(a, b), -1, puts("couldn't move file"));
+	if (fln < 3)
+		_mvTwoFiles(_mv_nputfile[0], _mv_nputfile[1]);
+	else
+		_mvMultiFiles(fln, _mv_nputfile);
 }
 
 int main(void)
@@ -278,7 +296,7 @@ int main(void)
 //		puts(p);
 //	puts(path_ncpy(NULL, "/hello/hi/////kl//p/power", 26));
 //	printf("%s\n", realpath("/h/b/t/y", path));
-	mv_directory_func(2, NULL, "./empty_test/new2");
+	mv_directory_func(2, "./empty_test/new1", "./empty_test/new2");
 	return (0);
 }
 	/* also change timestamp with utimes in mv*/
