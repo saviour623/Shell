@@ -1,47 +1,27 @@
-#include "shell_header.h"
-struct statb {
-               dev_t     st_dev;         /* ID of device containing file */
-               ino_t     st_ino;         /* Inode number */
-               mode_t    st_mode;        /* File type and mode */
-               nlink_t   st_nlink;       /* Number of hard links */
-               uid_t     st_uid;         /* User ID of owner */
-               gid_t     st_gid;         /* Group ID of owner */
-               dev_t     st_rdev;        /* Device ID (if special file) */
-               off_t     st_size;        /* Total size, in bytes */
-               blksize_t st_blksize;     /* Block size for filesystem I/O */
-               blkcnt_t  st_blocks;      /* Number of 512B blocks allocated */
-};
-
-#ifdef __linux__
-#include <sys/fsuid.h>
-#endif
-#include <dirent.h>
-#include <sys/vfs.h>
-#include <stdarg.h>
-
-#define IS_RDWRXTE(PERM) (PERM & (S_IRUSR | S_IWUSR | S_IXUSR))
-#define PROC_OWNED(ENT, PROCID) (ENT.st_uid == PROCID)
-#define BPERM_DIR S_IWUSR | S_IRUSR | S_IXUSR | S_IXGRP | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH
-#define BPERM_FLE S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH
-
-#define MVFILE_MAX 256
-typedef struct pathsc {
-	char *pth_parenpath;
-	char *sc_abspath;
-} pathsc;
-
-typedef struct _mv_dest_info {
-	char *ds_name;
-	int ds_fd;
-#ifdef _SYS_FS_H
-	struct statfs *ds_fs;
-#endif
-} _mv_dest_info;
+#include "_mv.h"
 
 int _cptfs_flag;
 #define TST_LOGFUN(tst, err, act)\
 	do { if ((tst) == (err)){ act; exit(EXIT_FAILURE); } } while(0)
 
+void mvRenameFile(char *__restrict__ oldpath, char *__restrict__ newpath)
+{
+	if (rename(oldpath, newpath) == -1)
+	{
+		/* handle error */
+		exit(-1);
+	}
+}
+void *mvAlllocBl(size_t n)
+{
+	void *newblk = malloc(newblk, size);
+	if (newblk == NULL)
+	{
+		/* handle error */
+		exit(-1);
+	}
+	return newblk;
+}
 char *path_ncpy(char *dest, const char *src, size_t len)
 {
 	register int c, oo = 0;
@@ -51,6 +31,8 @@ char *path_ncpy(char *dest, const char *src, size_t len)
 		errno = EINVAL;
 		return NULL;
 	}
+	if (len == -1)
+		len = strlen(src);
 	if (dest == NULL && *src != 0)
 	{
 		dest = malloc(len * sizeof (char));
@@ -151,6 +133,9 @@ fsperm:
 }
 char *_get_current_dir_name(void)
 {
+	char *bf = malloc(PATH_MAX);
+	if (bf == NULL)
+		return NULL;
 }
 int _mvMultiFiles(int numOfiles, char **flelist)
 {
@@ -161,7 +146,7 @@ int _mvTwoFiles(char *__restrict__ flesrc, char *__restrict__ fledest)
 	struct stat statSrc, statDest;
 	struct statfs fsSrc, fsDest;
 	register int fd, creatFlag = 0;
-	char *currentDirectory = NULL;
+	char *fletmp = NULL;
 
 	if (flesrc == NULL || *flesrc == 0 || fledest == NULL || *fledest == 0)
 	{
@@ -212,20 +197,18 @@ int _mvTwoFiles(char *__restrict__ flesrc, char *__restrict__ fledest)
 		/* same fle system */
 		if (fsSrc.f_type == fsDest.f_type)
 		{
-			if (creatFlag || !(statDest.st_size))
-			{
-				if (rename(flesrc, fle) == -1)
-				{
-					/* handle error */
-					exit(errno);
-				}
-			}
+			if (creatFlag || !(statDest.st_size) || !(S_ISDIR(statDest.st_mode)))
+				mvRenameFile(flesrc, fle);
 			else
 			{
-#ifdef _GNU_SOURCE
-				currentDirectory = get_curren_dir_name();
-#else
-				currentDirectory = _get_current_dir_name();
+				register int srclen = strlen(flesrc), destlen = strlen(flesrc);
+
+				fletmp = mvAllocBlk(sizeof (char) * (srclen + destlen));
+				path_ncpy(fletmp, fledest, destlen);
+				if (fledest[destlen - 1] != '/')
+					fletmp[destlen - 1] = '/';
+				path_ncpy(fletmp + destlen, flesrc, srclen);
+				mvRenameFile(flsrc, fletmp);
 			}
 		}
 	}
